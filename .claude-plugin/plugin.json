@@ -1,0 +1,11 @@
+{
+  "name": "continuum",
+  "version": "0.4.3",
+  "description": "Plain Markdown memory, prompt routing and approval gates.",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "vault",
+    "approvals"
+  ]
+}

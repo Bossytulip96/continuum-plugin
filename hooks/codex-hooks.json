@@ -1,0 +1,71 @@
+{
+  "description": "Template only: Codex does not load plugin hooks (CLI 0.161). setup.js --host codex copies these into the vault .codex/hooks.json with the absolute plugin path.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/session-start.js\" --host codex",
+            "timeout": 8,
+            "statusMessage": "Loading Continuum memory",
+            "additionalContextLimit": 10000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/prompt-route.js\" --host codex",
+            "timeout": 8,
+            "additionalContextLimit": 20000
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/session-digest.js\" --host codex",
+            "timeout": 8
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/action-gate.js\" --host codex",
+            "timeout": 8,
+            "statusMessage": "Continuum gate"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/session-digest.js\" --host codex",
+            "timeout": 8
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/session-digest.js\" --host codex",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}

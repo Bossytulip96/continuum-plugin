@@ -1,0 +1,11 @@
+name: continuum
+version: "0.4.3"
+description: "Continuum: plain Markdown memory, prompt routing and approval gates. A thin adapter over the package's Node scripts."
+provides_hooks:
+  - on_session_start
+  - pre_llm_call
+  - pre_tool_call
+  - post_llm_call
+  - on_session_end
+  - on_session_finalize
+  - post_approval_response

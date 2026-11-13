@@ -1,0 +1,14 @@
+{
+  "name": "continuum",
+  "description": "Plain Markdown memory for personal sessions.",
+  "owner": {
+    "name": "Continuum maintainers"
+  },
+  "plugins": [
+    {
+      "name": "continuum",
+      "source": "./",
+      "description": "Plain Markdown memory and approval gates."
+    }
+  ]
+}

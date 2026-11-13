@@ -1,0 +1,6 @@
+node_modules/
+*.log
+CODEX-PROMPT.txt
+CODEX-REPORT.txt
+codex-stderr.txt
+codex-stream.jsonl
