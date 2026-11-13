@@ -1,5 +1,15 @@
 # Continuum
 
+Continuum gives your AI coding app a memory made of plain Markdown notes. It also asks you before risky steps, such as deleting a note.
+
+## What is ready today
+
+- **Codex in the ChatGPT app, on Windows: ready.** Download the zip from [Releases](../../releases/latest), unzip it, and open **Continuum Guide for Codex**. Setup is one file to double-click, with no commands to type.
+- **Claude Code: still in testing.** It installs through the terminal steps in INSTALL-CLAUDE.md. A double-click setup is being built.
+- **Hermes Agent: still in testing.** It installs through the steps in INSTALL-HERMES.md.
+
+## Technical details
+
 Continuum 0.4.3 is an MIT-licensed plugin for Claude Code, with a Codex install (INSTALL-CODEX.md) and a Hermes Agent install (INSTALL-HERMES.md), that gives each person a plain Markdown memory vault. Node 20 or later is required; there are no npm dependencies.
 
 ## How it works in 10 lines
