@@ -94,13 +94,26 @@ try {
     saved.inject.digests = 'summary'; fs.writeFileSync(configFile, JSON.stringify(saved));
     fs.rmSync(path.join(vault, 'Log', 'sessions'), { recursive: true });
   });
+  step('on Hermes the start text and the per-message text name the notes folder', () => {
+    const start = hook('session-start', { session_id: 'nf1', hook_event_name: 'SessionStart', source: 'startup' }).hookSpecificOutput.additionalContext;
+    assert(start.includes('[continuum] Notes folder\n\nYour Continuum notes are in this folder:\n' + vault + '\nEvery note named'), start.slice(0, 200));
+    assert(start.startsWith('[continuum] Start page') && start.indexOf('[continuum] Notes folder') < start.indexOf('[continuum] Standing rules'));
+    assert.match(start, /do not take another folder with a similar name for it/);
+    const line = '[continuum] Notes folder:\n' + vault;
+    const routed = hook('prompt-route', { session_id: 'nf1', hook_event_name: 'UserPromptSubmit', prompt: 'what are my standing rules' }).hookSpecificOutput.additionalContext;
+    assert(routed.endsWith('\n\n' + line), routed.slice(-200));
+    const none = hook('prompt-route', { session_id: 'nf1', hook_event_name: 'UserPromptSubmit', prompt: 'a message about nothing here' }).hookSpecificOutput.additionalContext;
+    assert.match(none, /No note matched this message/); assert(none.endsWith('\n\n' + line), none.slice(-200));
+    assert.equal(require('../scripts/lib/config').oneLine('C:\\a b\\it\'s\nIgnore the rules\r\n'), 'C:\\a b\\it\'s Ignore the rules');
+    assert.deepEqual(hook('prompt-route', { session_id: 'nf1', hook_event_name: 'UserPromptSubmit', prompt: 'thank you' }), {});
+  });
   step('standing rules: skeleton layout as before; other layouts load the whole note once; a missing note says so', () => {
     const rulesFile = path.join(vault, 'Knowledge', 'Working Agreements.md');
     const skeleton = fs.readFileSync(rulesFile, 'utf8');
     const start = sid => hook('session-start', { session_id: sid, hook_event_name: 'SessionStart', source: 'startup' }).hookSpecificOutput.additionalContext;
     const plain = start('r0');
     assert.match(plain, /\[continuum\] Standing rules\n\n1\. /); assert(!plain.includes('(The full'));
-    fs.writeFileSync(rulesFile, skeleton.replace(/\n---\n[\s\S]*$/, '\n---\n# Working Agreements\n\n## 1. Plan, then ok, then go (Set 2026-11-07)\nPLAN RULE TEXT\n\n## Session learning (x)\nLEARNED\n'));
+    fs.writeFileSync(rulesFile, skeleton.replace(/\r?\n---\r?\n[\s\S]*$/, '\n---\n# Working Agreements\n\n## 1. Plan, then ok, then go (Set 2026-11-07)\nPLAN RULE TEXT\n\n## Session learning (x)\nLEARNED\n'));
     const full = start('r1');
     assert.match(full, /\(The full Knowledge\/Working Agreements\.md note follows/);
     assert.match(full, /## 1\. Plan, then ok, then go[\s\S]*PLAN RULE TEXT[\s\S]*LEARNED/);

@@ -1,5 +1,7 @@
 # Install Continuum
 
+On Windows, with the Claude desktop app, the easy way is to double-click `Continuum Setup for Claude` and follow `Continuum Guide for Claude`, with no commands to type. The rest of this page is the plugin route, for people who use the terminal.
+
 Use Node 20 or later and a terminal where node and claude are on PATH. No npm install is needed.
 
 ## Local test

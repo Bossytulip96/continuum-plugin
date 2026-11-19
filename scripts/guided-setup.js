@@ -1,5 +1,6 @@
 'use strict';
-// Double-click setup for Codex on Windows ("Continuum Setup for Codex.cmd"): plain questions, one at
+// Double-click setup on Windows for Codex ("Continuum Setup for Codex.cmd", --host codex) and for the Claude
+// desktop app ("Continuum Setup for Claude.cmd", --host claude): plain questions, one at
 // a time, each with a default taken by pressing Enter. --check and --remove back the other two .cmd
 // files. Any failure is one plain sentence plus the path of a log file; never a stack trace.
 const fs = require('fs');
@@ -12,9 +13,17 @@ class Plain extends Error {}
 const fail = (plain, detail) => { throw Object.assign(new Plain(plain), { detail }); };
 
 async function setupFlow(ask) {
-  say('This sets up Continuum, a notes memory for Codex in the ChatGPT app. You answer a few questions; press Enter to take the suggestion in [brackets].',
-    'Nothing is changed outside three places: the Continuum program folder, its settings folder, and the notes folder you choose.',
-    'It also puts one shortcut on your Desktop, named Continuum Notes, that opens your notes folder.');
+  const claude = G.isClaude();
+  if (claude) {
+    say('This sets up Continuum, a notes memory for the Claude app (its Code tab). You answer a few questions; press Enter to take the suggestion in [brackets].',
+      'It changes these places only: the Continuum program folder, its settings folder, and the notes folder you choose.',
+      'It also puts one shortcut on your Desktop, named Continuum Notes, that opens your notes folder.',
+      'And it changes Claude\'s own settings file: it adds Continuum\'s hook lines, and adds your notes folder to the folders Claude may read. A copy of that file as it was is kept.');
+  } else {
+    say('This sets up Continuum, a notes memory for Codex in the ChatGPT app. You answer a few questions; press Enter to take the suggestion in [brackets].',
+      'Nothing is changed outside three places: the Continuum program folder, its settings folder, and the notes folder you choose.',
+      'It also puts one shortcut on your Desktop, named Continuum Notes, that opens your notes folder.');
+  }
   let name = '';
   while (!name) name = (await ask('What is your name?')).replace(/\s+/g, ' ');
   const profile = process.env.USERPROFILE || os.homedir();
@@ -24,7 +33,8 @@ async function setupFlow(ask) {
     const kind = G.folderKind(answer);
     if (kind === 'foreign') { say('That folder already holds other files. Please pick a different folder (a new or empty one).'); continue; }
     if (kind === 'vault') say('That looks like an existing Continuum notes folder. It will be kept as it is.');
-    if (G.remote(answer) === true) {
+    // The warning is what Codex itself shows; nothing is known about the Claude app here, so it says nothing.
+    if (!claude && G.remote(answer) === true) {
       say('Codex shows a "may not work safely here" warning for cloud or network drives.');
       if (!G.yes(await ask('Use it anyway? (y/N)'), false)) continue;
     }
@@ -52,29 +62,40 @@ async function setupFlow(ask) {
   say('');
   if (G.copyPackage()) say('Copying the Continuum program to ' + root + ' ...');
   else say('The Continuum program is already in ' + root + '.');
-  say('Creating your settings, notes folder and Codex hooks ...');
+  say(claude ? 'Creating your settings and notes folder, and adding Continuum\'s hook lines to Claude\'s settings file ...'
+    : 'Creating your settings, notes folder and Codex hooks ...');
   const setup = G.node(root, 'setup.js', ['--person', name, '--vault', vault, '--machine', machine, '--timezone', zone,
-    '--autonomy', 'ask', '--allow-folder', 'no', '--hooks', 'project']);
-  if (!setup.ok) fail('Setting up the notes folder and the Codex hooks did not work', setup.out);
+    '--autonomy', 'ask', ...(claude ? ['--allow-folder', 'yes', '--hooks', 'user'] : ['--allow-folder', 'no', '--hooks', 'project'])]);
+  // Claude's settings file that cannot be read is left alone by setup.js; here that is a failure, said plainly.
+  if (claude && /could not be read as (Claude Code )?settings/.test(setup.out)) {
+    fail('Claude\'s settings file could not be read, so it was left alone and Continuum\'s hook lines were not added', setup.out);
+  }
+  if (!setup.ok) fail(claude ? 'Setting up the notes folder and Claude\'s hook lines did not work' : 'Setting up the notes folder and the Codex hooks did not work', setup.out);
   say('Checking the result ...');
-  const todo = G.verdict(G.node(root, 'status.js', []).out).filter(t => !/trust/i.test(t));
+  const todo = G.verdict(G.node(root, 'status.js', claude ? ['--guided'] : []).out).filter(t => !/trust/i.test(t));
   if (todo.length) fail('The check after setup found a problem: ' + todo[0], todo.join('\n'));
-  const settings = path.join(profile, '.continuum', 'codex');
+  const settings = G.settingsFolder();
   const linked = G.shortcut(vault);
+  // The first copy that exists is the oldest one: Claude's settings file before this setup changed it.
+  const copy = [...setup.out.matchAll(/kept at (.+?)\.?\s*$/gm)].map(m => m[1]).find(f => fs.existsSync(f));
+  const steps = G.stepsFor(vault, linked);
   say('', 'Done. Continuum is set up:', '  Program folder: ' + root, '  Settings folder: ' + settings, '  Notes folder: ' + vault,
     ...(linked ? ['  Desktop shortcut: ' + G.SHORTCUT + ' (opens your notes folder)'] : []),
-    '', G.STEPS.length + ' steps are left, in the ChatGPT app:', ...G.steps(vault, linked).map((s, i) => '  ' + (i + 1) + '. ' + s),
+    ...(claude ? ['  Claude\'s settings file: ' + (setup.out.match(/^Claude hooks (?:written|unchanged): (.+?)(?: \(|$)/m) || [])[1],
+      ...(copy ? ['  Copy of it as it was: ' + copy] : [])] : []),
+    '', steps.length + ' steps are left, in ' + (claude ? 'the Claude app' : 'the ChatGPT app') + ':', ...steps.map((s, i) => '  ' + (i + 1) + '. ' + s),
     '', 'The guide is here: ' + G.guideFile(root));
 }
 async function checkFlow() {
   const root = G.installedRoot();
-  const result = G.node(root, 'status.js', []);
+  const result = G.node(root, 'status.js', G.isClaude() ? ['--guided'] : []);
   const todo = G.verdict(result.out);
   if (!todo.length && result.ok) { say('Everything is in place.'); return; }
   if (!todo.length) fail('The check could not finish', result.out);
   say('Not everything is in place yet:', ...todo.map(t => '  - ' + t));
 }
 async function removeFlow(ask) {
+  if (G.isClaude()) return removeClaude(ask);
   say('This removes only Continuum\'s entries from the Codex hooks file, so Codex stops running Continuum.',
     'Your notes folder and Continuum\'s settings stay exactly as they are.');
   if (!/^yes$/i.test(await ask('Type YES to remove, or just press Enter to stop:'))) { say('Nothing was changed.'); return; }
@@ -82,6 +103,16 @@ async function removeFlow(ask) {
   if (!result.ok) fail('Removing Continuum\'s hooks did not work', result.out);
   say(/Removed/.test(result.out) ? 'Done. Codex will no longer run Continuum. Your notes and settings are still there.'
     : 'There were no Continuum hooks to remove. Nothing was changed.');
+}
+async function removeClaude(ask) {
+  say('This removes only Continuum\'s hook lines from Claude\'s settings file, so the Claude app stops running Continuum.',
+    'Everything else in that file stays as it is, and a copy of the file is kept first.',
+    'Your notes folder and Continuum\'s settings stay exactly as they are.');
+  if (!/^yes$/i.test(await ask('Type YES to remove, or just press Enter to stop:'))) { say('Nothing was changed.'); return; }
+  const result = G.node(G.installedRoot(), 'setup.js', ['--remove']);
+  if (!result.ok) fail('Removing Continuum\'s hook lines from Claude\'s settings file did not work', result.out);
+  say(/^Removed/m.test(result.out) ? 'Done. The Claude app will no longer run Continuum. Your notes and settings are still there.'
+    : 'There were no Continuum hook lines to remove. Nothing was changed.');
 }
 async function main() {
   const args = process.argv.slice(2);

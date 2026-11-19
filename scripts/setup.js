@@ -92,7 +92,13 @@ function setup(args) {
 }
 // Codex (--host codex) also writes the hooks file and AGENTS.md, and accepts --hooks and --remove.
 // Hermes (--host hermes) also installs the adapter into --hermes-home and accepts --node, --digests, --remove.
-if (require.main === module) C.runCli(() => C.host.isCodex()
-  ? require('./lib/codex-setup').run(process.argv.slice(2), setup)
-  : C.host.isHermes() ? require('./lib/hermes-setup').run(process.argv.slice(2), setup) : setup(process.argv.slice(2)));
+// Claude (the default host) writes hooks into Claude's user settings.json only when asked: --hooks user, or
+// --remove (the double-click setup). A plain run, as the plugin's setup skill does it, is unchanged.
+if (require.main === module) C.runCli(() => {
+  const args = process.argv.slice(2);
+  if (C.host.isCodex()) return require('./lib/codex-setup').run(args, setup);
+  if (C.host.isHermes()) return require('./lib/hermes-setup').run(args, setup);
+  const claude = require('./lib/claude-setup');
+  return claude.wanted(args) ? claude.run(args, setup) : setup(args);
+});
 module.exports = { setup };

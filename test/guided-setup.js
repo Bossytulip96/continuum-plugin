@@ -12,13 +12,13 @@ let checks = 0;
 function fresh() {
   temp = fs.mkdtempSync(path.join(os.tmpdir(), 'continuum-guided-'));
   // CONTINUUM_DESKTOP keeps the Desktop shortcut inside the temp profile, never on the real Desktop.
-  const env = { ...process.env, USERPROFILE: temp, HOME: temp, CODEX_HOME: path.join(temp, '.codex'),
+  const env = { ...process.env, USERPROFILE: temp, HOME: temp, CODEX_HOME: path.join(temp, '.codex'), CLAUDE_CONFIG_DIR: path.join(temp, '.claude'),
     CONTINUUM_DESKTOP: path.join(temp, 'Desktop') };
   delete env.CONTINUUM_CONFIG; delete env.CONTINUUM_HOST; delete env.CONTINUUM_DEBUG;
   return env;
 }
-function guided(env, lines, args = [], script = path.join(root, 'scripts', 'guided-setup.js')) {
-  const r = spawnSync(process.execPath, [script, '--host', 'codex', ...args], { env, input: lines.join('\n') + '\n', encoding: 'utf8', timeout: 60000 });
+function guided(env, lines, args = [], script = path.join(root, 'scripts', 'guided-setup.js'), host = 'codex') {
+  const r = spawnSync(process.execPath, [script, '--host', host, ...args], { env, input: lines.join('\n') + '\n', encoding: 'utf8', timeout: 60000 });
   assert.ifError(r.error);
   assert(!/\n\s+at .+:\d+:\d+/.test(r.stdout + r.stderr), 'no stack trace: ' + r.stdout + r.stderr);
   return r;
@@ -29,7 +29,7 @@ const snapshot = dir => Object.fromEntries(tree(dir).map(f => [f, fs.readFileSyn
 function step(name, fn) { const env = fresh(); try { fn(env); } finally { fs.rmSync(temp, { recursive: true, force: true }); }
   checks++; console.log('PASS guided ' + checks + ': ' + name); }
 try {
-  step('happy path with every default: permanent copy, config, notes with 12 templates, hooks on the copy, AGENTS.md, Desktop shortcut, six steps', env => {
+  step('happy path with every default: permanent copy, config, notes with 13 templates, hooks on the copy, AGENTS.md, Desktop shortcut, six steps', env => {
     const r = guided(env, ['Sample Person', '', '', '', '']);
     assert.equal(r.status, 0, r.stdout + r.stderr);
     const perm = path.join(temp, '.codex', 'plugins', 'continuum');
@@ -39,7 +39,7 @@ try {
     assert(!fs.existsSync(path.join(perm, 'INSTALL.md')), 'the old install doc name is gone');
     assert(!fs.existsSync(path.join(perm, '.git')) && !fs.existsSync(path.join(perm, 'test')));
     assert(fs.existsSync(path.join(temp, '.continuum', 'codex', 'config.json')));
-    assert.equal(tree(vault).filter(f => !f.includes(path.sep + '.codex' + path.sep) && !f.endsWith('AGENTS.md')).length, 12);
+    assert.equal(tree(vault).filter(f => !f.includes(path.sep + '.codex' + path.sep) && !f.endsWith('AGENTS.md')).length, 13);
     assert(fs.existsSync(path.join(vault, 'AGENTS.md')));
     const hooks = fs.readFileSync(path.join(vault, '.codex', 'hooks.json'), 'utf8');
     assert(hooks.includes(perm.split(path.sep).join('/') + '/scripts/')); assert(!hooks.includes(root.split(path.sep).join('/')));
@@ -178,6 +178,91 @@ try {
       assert(m && fs.existsSync(path.join(root, m[1].split('\\').join(path.sep))), name);
       assert.match(text, /pause\r\n$/); assert.match(text, /nodejs\.org/);
     }
+  });
+  // The Claude desktop app (--host claude): program in .continuum\program, hooks in Claude's settings.json.
+  const claude = (env, lines, args = [], script) => guided(env, lines, args, script, 'claude');
+  const { claudeSteps } = require('../scripts/lib/guided');
+  const foreign = { permissions: { allow: ['Bash(ls)'] }, enabledPlugins: { 'other@market': true },
+    hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo other-stop' }] }] } };
+  const settingsOf = () => JSON.parse(fs.readFileSync(path.join(temp, '.claude', 'settings.json'), 'utf8'));
+  const ourArgs = data => Object.values(data.hooks || {}).flatMap(gs => gs.flatMap(g => g.hooks)).filter(h => h.args).map(h => h.args[0]);
+  function claudeSetup(env) {
+    fs.mkdirSync(path.join(temp, '.claude'));
+    fs.writeFileSync(path.join(temp, '.claude', 'settings.json'), JSON.stringify(foreign));
+    return claude(env, ['Sample Person', '', '', '', '']);
+  }
+  step('claude: happy path from piped answers: program copy, config, notes, hooks merged into settings.json, Done, four steps', env => {
+    const r = claudeSetup(env);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const perm = path.join(temp, '.continuum', 'program');
+    const vault = path.join(temp, 'Documents', 'Continuum');
+    for (const f of ['scripts/setup.js', 'hooks/hooks.json', 'Continuum Setup for Claude.cmd', 'Continuum Check for Claude.cmd',
+      'Continuum Remove for Claude.cmd', 'Continuum Guide for Claude.html', 'INSTALL-CLAUDE.md']) assert(fs.existsSync(path.join(perm, f)), f);
+    assert(!fs.existsSync(path.join(perm, 'test')) && !fs.existsSync(path.join(perm, '.git')));
+    const cfg = JSON.parse(fs.readFileSync(path.join(temp, '.continuum', 'config.json'), 'utf8'));
+    assert.match(cfg.machine, /-claude$/); assert.equal(path.resolve(cfg.vault), vault);
+    assert(fs.existsSync(path.join(vault, 'START HERE.md')) && !fs.existsSync(path.join(vault, '.codex')));
+    const data = settingsOf();
+    assert.deepEqual(data.enabledPlugins, foreign.enabledPlugins); assert.deepEqual(data.permissions.allow, foreign.permissions.allow);
+    assert.deepEqual(data.permissions.additionalDirectories, [vault]); assert.deepEqual(data.hooks.Stop[0], foreign.hooks.Stop[0]);
+    const args = ourArgs(data);
+    assert.equal(args.length, 6); for (const a of args) assert(a.startsWith(perm.split(path.sep).join('/') + '/scripts/') && fs.existsSync(a), a);
+    assert(r.stdout.includes('And it changes Claude\'s own settings file'), 'the opening says Claude\'s settings file changes');
+    assert.match(r.stdout, /Done\. Continuum is set up:/); assert.match(r.stdout, /Copy of it as it was: /);
+    assert.match(r.stdout, /4 steps are left, in the Claude app:/);
+    claudeSteps(vault, process.platform === 'win32').forEach((s, i) => assert(r.stdout.includes((i + 1) + '. ' + s), s));
+    assert.match(r.stdout, /The guide is here: .*[\\/]\.continuum[\\/]program[\\/]Continuum Guide for Claude\.html\r?\n/);
+    assert(!fs.existsSync(path.join(temp, '.codex')), 'nothing for Codex');
+    const before = fs.readFileSync(path.join(temp, '.claude', 'settings.json'));
+    const again = claude(env, ['Sample Person', '', '', '', ''], [], path.join(perm, 'scripts', 'guided-setup.js'));
+    assert.equal(again.status, 0, again.stdout); assert.match(again.stdout, /already in/);
+    assert(fs.readFileSync(path.join(temp, '.claude', 'settings.json')).equals(before), 'second run rewrites nothing');
+  });
+  step('claude: --check says Everything is in place, then names the missing hook lines; --remove needs YES and keeps the rest', env => {
+    claudeSetup(env);
+    const file = path.join(temp, '.claude', 'settings.json');
+    let r = claude(env, [], ['--check']);
+    assert.equal(r.stdout.trim(), 'Everything is in place.');
+    const before = fs.readFileSync(file, 'utf8');
+    r = claude(env, [''], ['--remove']);
+    assert.match(r.stdout, /Nothing was changed/); assert.equal(fs.readFileSync(file, 'utf8'), before);
+    r = claude(env, ['YES'], ['--remove']);
+    assert.match(r.stdout, /removes only Continuum's hook lines from Claude's settings file/);
+    assert.match(r.stdout, /Done\. The Claude app will no longer run Continuum\. Your notes and settings are still there\./);
+    const data = settingsOf();
+    assert.deepEqual(data.hooks, foreign.hooks); assert.deepEqual(data.enabledPlugins, foreign.enabledPlugins);
+    assert(fs.existsSync(path.join(temp, 'Documents', 'Continuum', 'START HERE.md')) && fs.existsSync(path.join(temp, '.continuum', 'config.json')));
+    r = claude(env, [], ['--check']);
+    assert.match(r.stdout, /Not everything is in place yet:\n  - Claude's settings file is missing Continuum's hook lines[\s\S]*"Continuum Setup for Claude" again/);
+    assert.match(claude(env, ['YES'], ['--remove']).stdout, /no Continuum hook lines to remove/);
+  });
+  step('claude: a settings.json that is not valid JSON is left alone and the failure is one plain sentence', env => {
+    fs.mkdirSync(path.join(temp, '.claude'));
+    fs.writeFileSync(path.join(temp, '.claude', 'settings.json'), '{ not json');
+    const r = claude(env, ['Sample Person', '', '', '', '']);
+    assert.equal(r.status, 1, r.stdout);
+    assert.match(r.stdout, /Something did not work: Claude's settings file could not be read, so it was left alone and Continuum's hook lines were not added\.\n.*guided-setup\.log/);
+    assert.equal(fs.readFileSync(path.join(temp, '.claude', 'settings.json'), 'utf8'), '{ not json');
+    assert(fs.existsSync(path.join(temp, '.continuum', 'guided-setup.log')));
+  });
+  step('claude: the three .cmd files are ASCII with CRLF, like the Codex ones, and run scripts that exist', () => {
+    for (const kind of ['Setup', 'Check', 'Remove']) {
+      const text = fs.readFileSync(path.join(root, 'Continuum ' + kind + ' for Claude.cmd'));
+      assert(text.every(b => b < 128));
+      const codex = fs.readFileSync(path.join(root, 'Continuum ' + kind + ' for Codex.cmd'), 'ascii');
+      assert.equal(text.toString('ascii'), codex.replace('for Codex', 'for Claude').replace('--host codex', '--host claude'), kind);
+      const m = text.toString('ascii').match(/node "%~dp0([^"]+)" --host claude/);
+      assert(m && fs.existsSync(path.join(root, m[1].split('\\').join(path.sep))));
+    }
+  });
+  const G2 = require('../scripts/build-guide').GUIDES[1];
+  if (!fs.existsSync(G2.source)) console.log('SKIP guided: Claude HTML guide check, GUIDE-CLAUDE.md is not here');
+  else step('claude: the committed Claude HTML guide is what scripts/build-guide.js makes from GUIDE-CLAUDE.md', () => {
+    const lf = text => text.replace(/\r\n/g, '\n');
+    const made = render(lf(fs.readFileSync(G2.source, 'utf8')), G2.title);
+    assert.equal(lf(fs.readFileSync(G2.target, 'utf8')), made, 'run node scripts/build-guide.js');
+    assert(!/NAMES NOT YET CHECKED|<!--|\*\*|<script|https?:/.test(made.replace(/<code>[^<]*<\/code>/g, '')));
+    for (const s of claudeSteps()) assert(made.replace(/<\/?strong>/g, '').replace(/\s+/g, ' ').includes(s.split('.')[0]), s);
   });
   console.log('PASS guided: ' + checks + ' groups');
 } catch (error) {

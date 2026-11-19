@@ -4,6 +4,7 @@ const fs = require('fs');
 const config = require('./lib/config');
 const vault = require('./lib/vault');
 const proposals = require('./proposal');
+const filing = require('./lib/filing');
 
 function readJson(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
@@ -31,7 +32,8 @@ function status(c) {
     'Skills: ' + skills.length,
     'Pending proposals: ' + proposals.load(c).filter(proposals.open).length,
     'Last digest: ' + (sessions.length ? sessions[0].rel + ' (' + sessions[0].fm.updated + ')' : 'none'),
-    'Approvals in force: ' + active.length + (active.length ? ' (' + active.map(([level]) => level).join(', ') + ')' : '')
+    'Approvals in force: ' + active.length + (active.length ? ' (' + active.map(([level]) => level).join(', ') + ')' : ''),
+    ...filing.report(c, filing.sizes(c, notes)).map((line, i) => i ? '- ' + line : line.charAt(0).toUpperCase() + line.slice(1))
   ].join('\n'));
 }
 function readActions(c, month) {
@@ -88,12 +90,14 @@ function consolidate(c, mode) {
     });
     if (row) made.push(row);
   }
+  // A note close to or over the load limit gets one split proposal (never a second open one for the same note).
+  const splits = filing.propose(c, proposals, filing.sizes(c, notes));
   const pending = proposals.load(c).filter(proposals.open);
   const stale = pending.filter(row => (Date.parse(today + 'T00:00:00Z') - Date.parse(row.date + 'T00:00:00Z')) / 86400000 > 7);
   const index = vault.buildIndex(c);
   const home = config.vaultPath(c, 'Home.md');
   const summary = mode + ': index ' + index.length + ' notes; ' + stale.length + ' unanswered proposals older than 7 days; ' +
-    repeated.length + ' repeated actions; ' + made.length + ' new proposals.';
+    repeated.length + ' repeated actions; ' + made.length + ' new proposals; ' + splits.length + ' new split proposals for large notes.';
   if (!fs.existsSync(home)) fs.writeFileSync(home, '# Home\n', 'utf8');
   fs.appendFileSync(home, '\n- ' + config.stamp(c) + ': ' + summary + '\n', 'utf8');
   console.log(summary);

@@ -6,6 +6,7 @@ const V = require('./lib/vault');
 const P = require('./proposal');
 const D = require('./decision-log');
 const X = require('./lib/codex');
+const F = require('./lib/filing');
 
 function route(input, c) {
   const prompt = String(input.prompt || '').toLowerCase();
@@ -30,11 +31,15 @@ function route(input, c) {
     catch (err) { C.logError(err); }
   }
   if (candidates.length) {
-    parts.push('[continuum] Vault notes loaded for this message');
+    // A loaded note is where the looking starts, not where it ends: the entries a question needs may sit in a
+    // note this one links to (a split main note keeps only the list of its subject notes).
+    parts.push('[continuum] Vault notes loaded for this message. Read each one in full, then follow its links and the ' +
+      'other places it names (another note, a file, a live system, reading only) to the end of the path before you ' +
+      'answer. One note read is not the notes checked.');
     for (const e of candidates) {
       parts.push(rulesLoaded && e.rel === 'Knowledge/Working Agreements.md'
         ? '--- ' + e.rel + ' --- (already loaded in full at the start of this session)'
-        : '--- ' + e.rel + ' ---\n' + e.text.slice(0, c.inject.maxNoteChars));
+        : '--- ' + e.rel + ' ---\n' + F.fit(e.text, c.inject.maxNoteChars, e.rel));
       // The usage fields are rewritten from a fresh read of the file, never from the
       // snapshot above, so a save made meanwhile is kept. A file that is not valid
       // UTF-8 is injected but left untouched: rewriting it would corrupt its bytes.
@@ -51,7 +56,14 @@ function route(input, c) {
         fs.renameSync(tmp, e.file);
       } catch (err) { C.logError(err); }
     }
+  } else if (V.words(prompt).length >= 3) {
+    // No lookup phrase matched, so nothing was loaded. The start text says to search then, but in a long session that is far
+    // back; this line says it at the moment it applies. Not for a one or two word message ("ok", "go", "thank you").
+    parts.push('[continuum] No note matched this message, so none was loaded. If it asks about or refers to ' +
+      'something the notes may hold, search every note yourself and read what you find in full before you answer.');
   }
+  // On Hermes the working folder is not the notes folder, so every loaded or search line also says where the notes are.
+  if (C.host.isHermes() && parts.length) parts.push('[continuum] Notes folder:\n' + C.oneLine(c.vault));
   let state = { asked: [] };
   const statePath = input.session_id ? C.sessionFile(c, input.session_id) : null;
   if (statePath && fs.existsSync(statePath)) {

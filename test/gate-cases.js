@@ -10,6 +10,8 @@ module.exports = function cases({ vault, root }) {
   const setup = 'node "' + path.join(root, 'scripts', 'setup.js') + '" --person "Sample Person" --vault "' + vault + '" --machine sample --timezone UTC --autonomy ask';
   const parent = path.dirname(vault);
   const glob = path.join(parent, path.basename(vault).slice(0, 2) + '*', 'Home.md');
+  const split = path.join(root, 'scripts', 'split-note.js');
+  const plan = path.join(parent, 'plan.json');
   return [
     // The exact approve invocation is exempt; anything chained to it or naming the script as an argument is not.
     ['Bash', { command: approve }, 'allow'],
@@ -57,5 +59,48 @@ module.exports = function cases({ vault, root }) {
     ['mcp__vault__delete_note', { path: 'Home.md' }, 'vendor-write'],
     ['mcp__gmail__get_message', {}, 'allow'],
     ['mcp__x__list_records', {}, 'allow'],
+    // The Claude app's own task list (server ccd_turn) changes nothing outside the session (found live 2026-11-12:
+    // five "update plan" boxes in three requests). Only those two exact tools are exempt; any other action on that server, look-alikes and other ccd_* servers are not, and mail and money keep their own levels there.
+    ['mcp__ccd_turn__update_plan', {}, 'allow'],
+    ['mcp__ccd_turn__wrap_up', {}, 'allow'],
+    ['mcp__CCD_Turn__update_plan', {}, 'allow'],
+    ['mcp__ccd_turnx__update_plan', {}, 'vendor-write'],
+    ['mcp__xccd_turn__update_plan', {}, 'vendor-write'],
+    ['mcp__ccd_turn__delete_everything', {}, 'vendor-write'],
+    ['mcp__ccd_turn__update_ticket', {}, 'vendor-write'],
+    ['mcp__ccd_turn__send_email', {}, 'email-send'],
+    ['mcp__ccd_turn__pay_invoice', {}, 'money'],
+    ['mcp__ccd_sidebar__delete_group', {}, 'vendor-write'],
+    ['mcp__ccd_settings__set_setting', {}, 'vendor-write'],
+    ['mcp__someserver__update_ticket', {}, 'vendor-write'],
+    // A real split rewrites notes, so it asks like other vault rewrites; its dry run, usage and help change nothing.
+    ['Bash', { command: 'node "' + split + '" "' + plan + '"' }, 'vault-delete'],
+    ['PowerShell', { command: 'Get-Content plan.json | node "' + split + '" -' }, 'vault-delete'],
+    ['Bash', { command: 'node "' + split + '" --dry-run "' + plan + '" && node "' + split + '" "' + plan + '"' }, 'vault-delete'],
+    ['Bash', { command: 'node "' + split + '" --dry-run "' + plan + '"' }, 'allow'],
+    ['Bash', { command: 'node "' + split + '" "' + plan + '" --dry-run' }, 'allow'],
+    ['Bash', { command: 'node "' + split + '"' }, 'allow'],
+    ['Bash', { command: 'node "' + split + '" --help' }, 'allow'],
+    // A dry run is the argument --dry-run of the same command: not a comment, not part of another word, not another command.
+    ['Bash', { command: 'node "' + split + '" "' + plan + '" # --dry-run' }, 'vault-delete'],
+    ['Bash', { command: 'node "' + split + '" "' + plan + '" "note --dry-run"' }, 'vault-delete'],
+    ['Bash', { command: 'echo --dry-run; node "' + split + '" "' + plan + '"' }, 'vault-delete'],
+    ['Bash', { command: 'node "' + split + '" "' + plan + '" && echo --dry-run' }, 'vault-delete'],
+    ['PowerShell', { command: 'node "' + split + '" "' + plan + '" | Select-String --dry-run' }, 'vault-delete'],
+    ['Bash', { command: 'node scripts/split-note.js "' + plan + '"' }, 'vault-delete'],
+    ['Bash', { command: 'node "' + split + '" --recover' }, 'vault-delete'],
+    ['PowerShell', { command: 'node .\\scripts\\split-note.js "' + plan + '" --dry-run' }, 'allow'],
+    ['PowerShell', { command: 'node .\\scripts\\split-note.js "' + plan + '"' }, 'vault-delete'],
+    // A real split wrapped in another shell is still a real split; a dry run written across a line continuation is still a dry run.
+    ['Bash', { command: 'bash -c "node \'' + split + '\' \'' + plan + '\'"' }, 'vault-delete'],
+    ['PowerShell', { command: 'cmd /c node "' + split + '" "' + plan + '"' }, 'vault-delete'],
+    ['PowerShell', { command: 'powershell -Command "node \'' + split + '\' \'' + plan + '\'"' }, 'vault-delete'],
+    ['Bash', { command: 'bash -c "node \'' + split + '\' --dry-run \'' + plan + '\'"' }, 'allow'],
+    ['Bash', { command: 'node "' + split + '" \\\n  --dry-run "' + plan + '"' }, 'allow'],
+    ['PowerShell', { command: 'node "' + split + '" `\r\n  --dry-run "' + plan + '"' }, 'allow'],
+    ['PowerShell', { command: 'cmd /c node "' + split + '" ^\r\n  --dry-run "' + plan + '"' }, 'allow'],
+    ['Bash', { command: 'node "' + split + '" "' + plan + '"\n--dry-run' }, 'vault-delete'],
+    ['Bash', { command: 'node scripts/split-note.js --host codex --dry-run "' + plan + '"' }, 'allow'],
+    ['Bash', { command: 'node "' + split + '" "--dry-run" "' + plan + '"' }, 'allow'],
   ];
 };

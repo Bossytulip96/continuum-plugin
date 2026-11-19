@@ -60,6 +60,8 @@ function contained(base, parts) {
 const pluginPath = (...parts) => contained(path.resolve(__dirname, '..', '..'), parts);
 const configFile = (c, ...parts) => contained(c.configDir, parts);
 const vaultPath = (c, ...parts) => contained(c.vault, parts);
+// A value shown inside injected text stays on one line: a line break inside it cannot start a new line of text.
+const oneLine = value => String(value).replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
 function resolveTarget(c, value, cwd) {
   return path.resolve(normalize(cwd || c.vault), normalize(value));
 }
@@ -187,5 +189,5 @@ async function hook(event, handler, onError) {
 function runCli(handler) {
   Promise.resolve().then(handler).catch(e => { console.error(e.message); process.exitCode = 1; });
 }
-module.exports = { configPath, normalize, inside, covers, pluginPath, configFile, vaultPath,
+module.exports = { configPath, normalize, inside, covers, pluginPath, configFile, vaultPath, oneLine,
   resolveTarget, validate, load, host, stamp, date, ttl, sessionFile, transcriptPath, logError, hook, runCli };

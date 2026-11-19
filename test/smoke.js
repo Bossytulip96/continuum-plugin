@@ -52,7 +52,7 @@ function gate(tool_name, tool_input) {
 function deny(result, level) {
   const want = level === 'money' ? 'deny' : 'ask';
   assert.equal(result.permissionDecision, want, 'expected ' + want + ' (' + level + ') for: ' + lastGate);
-  assert.match(result.permissionDecisionReason, new RegExp(level));
+  assert.match(result.permissionDecisionReason, new RegExp(level)); if (want === 'ask') assert(result.permissionDecisionReason.endsWith(' Choose Yes or Allow once to let it happen this one time. Choose No or Deny and it does not happen.'));
 }
 const setupArgs = ['--person', 'Sample Person', '--vault', vault, '--machine', 'sample', '--timezone', 'UTC', '--autonomy', 'ask', '--allow-folder', 'no'];
 try {
@@ -76,11 +76,11 @@ try {
     for (const name of hooks) expectError(name, run(name, [], {}));
     fs.writeFileSync(file, '{}');
   });
-  step('setup creates exactly twelve templates and is idempotent', () => {
+  step('setup creates exactly thirteen templates and is idempotent', () => {
     const output = run('setup', setupArgs).stdout;
-    assert.match(output, /Created 12 template files/);
+    assert.match(output, /Created 13 template files/);
     const files = tree(vault);
-    assert.equal(files.length, 12);
+    assert.equal(files.length, 13);
     for (const item of files) assert(!/\{\{(?:person|machine|date)\}\}/.test(fs.readFileSync(item, 'utf8')));
     assert.match(read('START HERE.md'), /Sample Person/);
     const before = read('Home.md'); fs.appendFileSync(path.join(vault, 'Home.md'), '\nPreserve this line.\n');
@@ -272,7 +272,7 @@ try {
   });
   step('plugin exec contract and path containment reject traversal and dangling links', () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8'));
-    assert.equal(manifest.name, 'continuum'); assert.equal(manifest.version, '0.4.3'); assert.equal(manifest.license, 'MIT');
+    assert.equal(manifest.name, 'continuum'); assert.equal(manifest.version, '0.6.3'); assert.equal(manifest.license, 'MIT');
     const registry = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'hooks.json'), 'utf8')).hooks;
     assert.deepEqual(Object.keys(registry).sort(), ['PreToolUse', 'SessionEnd', 'SessionStart', 'Stop', 'UserPromptSubmit']);
     for (const registrations of Object.values(registry)) for (const registration of registrations) {

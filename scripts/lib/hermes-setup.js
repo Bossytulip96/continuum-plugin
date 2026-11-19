@@ -90,8 +90,8 @@ function run(argv, setup) {
   const yaml = readYaml(home);
   const on = yaml === null ? null : enabled(yaml);
   const steps = [];
-  if (on !== true) steps.push('Turn the plugin on: add continuum to the list under plugins, enabled in Hermes\'s config.yaml ' +
-    '(Hermes\'s own config set command can do it; the exact form depends on your install).');
+  if (on !== true) steps.push('Turn the plugin on: run hermes plugins enable continuum. If that command fails on your install, ' +
+    'add continuum to the list under plugins, enabled in Hermes\'s config.yaml by hand.');
   if ((digests || c.inject.digests) === 'full') {
     const limit = yaml === null ? null : spill(yaml);
     if (!(limit >= 100000)) steps.push('Full digests are on: raise hooks, output_spill, max_chars in config.yaml to at least 100000' +

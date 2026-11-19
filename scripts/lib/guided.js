@@ -1,11 +1,13 @@
 'use strict';
-// Helpers for the double-click Codex setup (scripts/guided-setup.js): the one copy of the five
-// steps left after setup, the answer reader, folder and drive checks, the package copy, and the
-// plain-word reading of status.js. Nothing here prints a stack trace.
+// Helpers for the double-click setup (scripts/guided-setup.js), for Codex (--host codex) and for the Claude
+// desktop app (--host claude): the one copy of the steps left after setup for each, the answer reader, folder
+// and drive checks, the package copy, and the plain-word reading of status.js. Nothing here prints a stack trace.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const host = require('./host');
+const isClaude = () => host.name() === 'claude';
 
 // The steps left after setup, in the words of the ChatGPT desktop app (Codex lives inside it).
 // This list is the one source: the end screen prints it and the user guide quotes it.
@@ -25,15 +27,45 @@ const steps = (vault, hasShortcut) => [
     : 'In the left list click Desktop, double-click Continuum Notes, then click Select Folder.' +
       (vault ? ' (If you do not see Continuum Notes there, your notes folder is ' + vault + '.)' : '')) +
     ' Do not pick the folder named .continuum with a dot in front; that one only holds settings.',
-  'Hold Ctrl and press the comma key to open Settings. Type hooks in the search box and click Hooks. Click the row with your notes folder (it says 6 need review), then click Trust all.',
+  'Hold Ctrl and press the comma key to open Settings. (Another way: click the round button with your initials at the bottom left, then Settings.) Type hooks in the search box and click Hooks. If that page does not show your notes folder, go back and open the other Hooks result. Click the row with your notes folder. If it says 6 need review, click Trust all. If it only says 6 hooks, they are already trusted from an earlier setup and there is nothing to click.',
   'Go back to the chat screen. Above the message box you should see the name of your notes folder and the words This computer. In a small window you may see two small pictures there instead of the words: a folder and a laptop. If it does not say This computer, click it and pick This computer.',
   'Type this and send it: What are my standing rules? If the answer lists rules from your notes, Continuum is working.'
 ];
 const STEPS = steps();
+// The steps left after setup in the Claude desktop app (its Code tab). There is no trust step for Claude.
+// This list is the one source: the end screen prints it and GUIDE-CLAUDE.md quotes it.
+// Names seen in the Claude desktop app on Windows on 2026-11-12, in screenshots from a second computer: the button
+// with three lines at the top left corner opens a menu with File, and File ends with Exit; two small pictures at
+// the top left, the second one drawn as </>; + New at the top of the list on the left; under the message box,
+// This computer and, next to it, Choose folder, whose menu holds No folder and Open folder...; the Windows folder
+// window is titled Select folder, with Desktop in its left list, the Continuum Notes shortcut and Select Folder.
+// Seen on 2026-11-18 on a laptop that had used a folder before: the folder button showed that folder's name, not
+// Choose folder; after Select Folder the app asked "Trust this workspace?" with Cancel and Trust workspace.
+// NOT YET SEEN: that the </> picture is named Code when the mouse is held over it (the app's documentation says
+// so); the choices behind This computer; whether the app must be quit for new hook lines to load, or a new
+// session is enough.
+const claudeSteps = (vault, hasShortcut) => [
+  'Quit the Claude app completely, then open it again: click the button with three lines at the very top left corner of the Claude window, ' +
+    'click File, then click Exit. (Use Exit, not the X in the corner.)',
+  'At the top left of the Claude window there are two small pictures side by side. Click the one that looks like </> . That one is Code.',
+  'Click + New at the top of the list on the left. Under the message box it should say This computer; if it says something else, click it and pick This computer. ' +
+    'Next to it click Choose folder (if you used a folder before, the button shows that folder\'s name), then click Open folder... ' + (vault && !hasShortcut
+    ? 'Go to your notes folder and click Select Folder. Your notes folder is ' + vault + '.'
+    : 'In the left list click Desktop, double-click Continuum Notes, then click Select Folder.' +
+      (vault ? ' (If you do not see Continuum Notes there, your notes folder is ' + vault + '.)' : '')) +
+    ' Do not pick the folder named .continuum with a dot in front; that one only holds settings.' +
+    ' If a box then asks Trust this workspace?, check that it names your notes folder and click Trust workspace.',
+  'Type this and send it: What are my standing rules? If the answer lists rules from your notes, Continuum is working.'
+];
+const CLAUDE_STEPS = claudeSteps();
+const stepsFor = (vault, hasShortcut) => (isClaude() ? claudeSteps : steps)(vault, hasShortcut);
+// The word that changes with the host in the .cmd file names: "Continuum Setup for Claude" or "... for Codex".
+const label = () => isClaude() ? 'Claude' : 'Codex';
 const SOURCE = path.resolve(__dirname, '..', '..');
 const profile = () => process.env.USERPROFILE || os.homedir();
-const permanent = () => path.join(profile(), '.codex', 'plugins', 'continuum');
-const logFile = () => path.join(profile(), '.continuum', 'codex', 'guided-setup.log');
+const permanent = () => isClaude() ? path.join(profile(), '.continuum', 'program') : path.join(profile(), '.codex', 'plugins', 'continuum');
+const settingsFolder = () => isClaude() ? path.join(profile(), '.continuum') : path.join(profile(), '.continuum', 'codex');
+const logFile = () => path.join(settingsFolder(), 'guided-setup.log');
 const same = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
 // The package that should do the work: the permanent copy once it exists, else this folder.
 const installedRoot = () => fs.existsSync(path.join(permanent(), 'scripts', 'setup.js')) ? permanent() : SOURCE;
@@ -84,7 +116,7 @@ function remote(dir) {
   } catch (_) { return null; }
 }
 function machineDefault() {
-  return (os.hostname().toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 58) || 'pc') + '-codex';
+  return (os.hostname().toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 58) || 'pc') + '-' + (isClaude() ? 'claude' : 'codex');
 }
 function validZone(zone) {
   try { new Intl.DateTimeFormat('en', { timeZone: zone }).format(); return Boolean(zone); } catch (_) { return false; }
@@ -99,11 +131,13 @@ function copyPackage() {
   for (const name of names) fs.cpSync(path.join(SOURCE, name), path.join(permanent(), name), { recursive: true, force: true });
   return true;
 }
-// The guide to point at: the HTML copy first (it opens in the browser with a double-click), else any other guide.
+// The guide to point at, for this host only (its name holds Claude or Codex): the HTML copy first (it opens in
+// the browser with a double-click), else any other guide for this host.
 function guideFile(root) {
-  const names = fs.readdirSync(root).filter(n => /guide/i.test(n) && !/\.cmd$/i.test(n));
+  const mark = isClaude() ? /claude/i : /codex/i;
+  const names = fs.readdirSync(root).filter(n => /guide/i.test(n) && !/\.cmd$/i.test(n) && mark.test(n));
   const found = names.find(n => /\.html$/i.test(n)) || names[0];
-  return path.join(root, found || 'INSTALL-CODEX.md');
+  return path.join(root, found || (isClaude() ? 'INSTALL-CLAUDE.md' : 'INSTALL-CODEX.md'));
 }
 // Best effort, Windows only: "Continuum Notes.lnk" on the Desktop, opening the notes folder. Windows names the
 // Desktop (it may be redirected into OneDrive); CONTINUUM_DESKTOP overrides it so tests never touch the real one.
@@ -125,7 +159,7 @@ function shortcut(vault) {
   } catch (e) { log('shortcut not created: ' + e.message); return false; }
 }
 function node(root, script, args) {
-  const r = spawnSync(process.execPath, [path.join(root, 'scripts', script), '--host', 'codex', ...args],
+  const r = spawnSync(process.execPath, [path.join(root, 'scripts', script), '--host', host.name(), ...args],
     { encoding: 'utf8', timeout: 60000, windowsHide: true, env: process.env });
   log('ran ' + script + ' ' + args.filter(a => a !== '--person').join(' ') + ' -> exit ' + r.status + '\n' + (r.stdout || '') + (r.stderr || ''));
   return { ok: !r.error && r.status === 0, out: (r.stdout || '') + (r.stderr || '') };
@@ -133,10 +167,14 @@ function node(root, script, args) {
 // status.js lines -> what is missing, each with the one thing to do about it.
 function verdict(statusOut) {
   const todo = [];
+  const again = 'Double-click "Continuum Setup for ' + label() + '" again';
   for (const line of String(statusOut).split(/\r?\n/)) {
     if (/^FAIL node version/.test(line)) todo.push('Node.js is too old. Install the version marked LTS from nodejs.org, then run setup again.');
-    else if (/^FAIL config/.test(line)) todo.push('Continuum\'s settings are missing. Double-click "Continuum Setup for Codex" again.');
-    else if (/^FAIL vault folder/.test(line)) todo.push('Your notes folder or its START HERE.md file is missing. Double-click "Continuum Setup for Codex" again and pick your notes folder.');
+    else if (/^FAIL config/.test(line)) todo.push('Continuum\'s settings are missing. ' + again + '.');
+    else if (/^FAIL vault folder/.test(line)) todo.push('Your notes folder or its START HERE.md file is missing. ' + again + ' and pick your notes folder.');
+    else if (/^FAIL claude settings/.test(line)) todo.push('Claude\'s own settings file could not be read, so Continuum could not check its hook lines there. ' +
+      'Send the file guided-setup.log from ' + settingsFolder() + ' to whoever gave you Continuum.');
+    else if (/^FAIL claude hooks/.test(line)) todo.push('Claude\'s settings file is missing Continuum\'s hook lines, or they point at a program folder that moved. ' + again + '.');
     else if (/^FAIL hooks file/.test(line)) todo.push('The Codex hooks file is missing or points at a program folder that moved. Double-click "Continuum Setup for Codex" again.');
     else if (/^(FAIL|INFO) hooks trusted in Codex: (no|cannot tell)/.test(line)) {
       todo.push((/cannot tell/.test(line) ? 'Could not see whether Codex trusts the hooks. If you have not done it yet: ' : 'Codex does not trust the hooks yet: ') +
@@ -145,5 +183,5 @@ function verdict(statusOut) {
   }
   return todo;
 }
-module.exports = { STEPS, steps, SOURCE, permanent, logFile, installedRoot, log, reader, yes, unquote, folderKind, remote,
+module.exports = { STEPS, steps, CLAUDE_STEPS, claudeSteps, stepsFor, label, settingsFolder, isClaude, SOURCE, permanent, logFile, installedRoot, log, reader, yes, unquote, folderKind, remote,
   machineDefault, validZone, copyPackage, guideFile, SHORTCUT, shortcut, node, verdict, same };

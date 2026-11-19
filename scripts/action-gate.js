@@ -4,7 +4,7 @@ const path = require('path');
 const config = require('./lib/config');
 const vault = require('./lib/vault');
 const log = require('./decision-log');
-const codex = require('./lib/codex'); const { shellGuard, copyable } = require('./lib/shell-backup'); const O = require('./lib/oneliner');
+const codex = require('./lib/codex'); const { shellGuard, copyable } = require('./lib/shell-backup'); const O = require('./lib/oneliner'); const F = require('./lib/filing');
 
 const COPY_NOTE = 'Continuum keeps its own dated copy under .backups; make none yourself. After the yes, run the approve line alone, then the same plain command again, alone.';
 const APPROVABLE = ['vault-delete', 'email-send', 'vendor-write', 'system-change', 'new-note'];
@@ -179,7 +179,7 @@ function classify(input, c) {
         (onCodex && CODEX_CONFIG_PATH.test(command))) && SHELL_WRITE.test(scan))) {
       levels.add('system-change');
     }
-    if (SHELL_MAIL.test(command)) levels.add('email-send');
+    if (SHELL_MAIL.test(command)) levels.add('email-send'); if (F.realSplit(command)) levels.add('vault-delete'); // a real split rewrites notes; its dry run is free
     if (DESTRUCTIVE.test(O.strip(scan))) { // a one-liner whose code shows no write or delete is a read
       const recursive = RECURSIVE.test(command);
       if (commandPaths(c, command, input.cwd).some(p => touchesVault(c, p, recursive))) levels.add('vault-delete');
@@ -199,9 +199,9 @@ function classify(input, c) {
     // action that sends, replies or forwards a message or draft.
     if (/send[_-]?(?:mail|email|draft|message)|(?:mail|email|draft|message)[_-]?send/.test(both) ||
         (/(?:mail|email|outlook|gmail)/.test(both) && /(?:send|reply|forward)/.test(action))) levels.add('email-send');
-    // Every mutating verb on an outside system needs approval; no server is exempt.
+    // Every mutating verb on an outside system needs approval. Two tools are exempt: update_plan and wrap_up on the server ccd_turn, the Claude app's own task list and turn recap, which change nothing outside the session; every other tool and server, the app's other ccd_* ones included, is gated.
     // Mail and money already have their own level, so they are not double-gated.
-    if (!levels.has('email-send') && !levels.has('money') && (/^(?:create|update|delete|remove|apply|publish|set|enable|disable|send|post|put|patch|archive|trash|move|rename|upload|write|reply|forward|add|insert|append|merge|close|cancel|escalate|snooze|trigger|unlist|discard|restore|link|pin)(?:[_-]|[a-z]*[A-Z]|$)/i.test(mcp[2]) ||
+    if (!(server === 'ccd_turn' && /^(?:update_plan|wrap_up)$/.test(action)) && !levels.has('email-send') && !levels.has('money') && (/^(?:create|update|delete|remove|apply|publish|set|enable|disable|send|post|put|patch|archive|trash|move|rename|upload|write|reply|forward|add|insert|append|merge|close|cancel|escalate|snooze|trigger|unlist|discard|restore|link|pin)(?:[_-]|[a-z]*[A-Z]|$)/i.test(mcp[2]) ||
         /^(?:create|update|delete|remove|apply|publish|set|enable|disable|send|post|put|patch|archive|trash|move|rename|upload|write|reply|forward|add|insert|append|merge|close|cancel|escalate|snooze|trigger|unlist|discard|restore|link|pin)(?:[_-]|$)/.test(action))) {
       levels.add('vendor-write');
     }
@@ -253,7 +253,7 @@ function handle(input, c) {
       call.hits.slice(0, 3).map(hit => hit.name || hit.rel || String(hit)).join(', ') + '.' : '';
     if (onCodex) return codexDeny(c, missing, duplicates, describe, call.shell && copyable(c, call.command, input.cwd, commandPaths));
     return decision('ask', '[continuum] ' + missing.join(', ') + ': ' + missing.map(level => PLAIN[level]).join(' ') +
-      duplicates + ' Choose Yes to let it happen this one time. Choose No and it does not happen.', missing);
+      duplicates + ' Choose Yes or Allow once to let it happen this one time. Choose No or Deny and it does not happen.', missing);
   }
   for (const level of call.levels) {
     note(c, 'action: ' + call.tool, level, 'allow-by-token', describe);
@@ -293,7 +293,7 @@ function patchAnswer(c, call, describe) {
   for (const file of call.patch.touched) note(c, 'action: apply_patch', 'vault-write', 'allowed', path.relative(c.vault, file));
   return {};
 }
-module.exports = { handle, classify, validToken, isApproveCommand, APPROVABLE };
+module.exports = { handle, classify, validToken, isApproveCommand, APPROVABLE, backup };
 // The gate fails closed: if it cannot decide, the call is denied with the reason.
 if (require.main === module) config.hook('PreToolUse', handle, e =>
   decision('deny', '[continuum] The gate could not evaluate this call (' + String(e.message || e) + '); denied. Fix the cause or run the setup skill.'));

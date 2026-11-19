@@ -24,6 +24,10 @@ Set {{date}} by {{person}} on {{machine}}. Change a rule by editing it here with
 6. No secrets in the vault: no passwords, keys, or tokens. A key goes in a config file outside the vault, placed by the person.
 7. Preserve history: correct in place with dates, mark superseded things, never delete on your own judgment.
 8. At session end, write what was learned into the matching note and add a dated line to Home.md.
+9. Nothing is trimmed to fit. A note that is too large is split into a main note and subject notes, word for word, after the person's yes; never shortened or summarized.
+10. Read the whole note, then follow its links and the other places it names (a note, a file, a live system, reading only) to the end before answering; a note already read is an end. One note read is not the notes checked. When no note was loaded and the person asks about or refers to something the notes may hold, search every note.
+11. Check every place that holds the answer before stating a fact: an answer, something the person refers to, "I cannot", "that was my mistake". Then give the correct answer, or "I could not find a definite answer" with where you looked.
+12. Ask one direct question at a time, in one line, in the message itself, whether or not there are choices to click. Reasons come only when the person asks. What is still open is asked as a question, never left as a statement.
 
 ## How corrections work
 

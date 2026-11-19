@@ -1,8 +1,10 @@
 'use strict';
-// Builds "Continuum Guide for Codex.html" from GUIDE-CODEX.md, so the guide opens in the browser with a
+// Builds "Continuum Guide for Codex.html" from GUIDE-CODEX.md and "Continuum Guide for Claude.html" from
+// GUIDE-CLAUDE.md, each from its own source, so the guide opens in the browser with a
 // double-click (Windows asks which app opens a .md file, and Notepad may show an "untrusted source" box).
 // Only the markdown the guide uses: # and ## headings, paragraphs, 1. and - lists, a - list nested under a
-// numbered item (3 spaces in), indented continuation lines, **bold**, `code` and ---. No dependencies.
+// numbered item (3 spaces in), indented continuation lines, **bold**, `code`, --- and <!-- comments --> (dropped).
+// No dependencies.
 // Run: node scripts/build-guide.js (from anywhere). The output is the same bytes for the same guide.
 const fs = require('fs');
 const path = require('path');
@@ -10,6 +12,9 @@ const ROOT = path.resolve(__dirname, '..');
 const SOURCE = path.join(ROOT, 'GUIDE-CODEX.md');
 const TARGET = path.join(ROOT, 'Continuum Guide for Codex.html');
 const TITLE = 'Continuum for Codex: setup guide';
+// Every guide this script builds. SOURCE, TARGET and TITLE above are the Codex one, kept for the tests.
+const GUIDES = [{ source: SOURCE, target: TARGET, title: TITLE },
+  { source: path.join(ROOT, 'GUIDE-CLAUDE.md'), target: path.join(ROOT, 'Continuum Guide for Claude.html'), title: 'Continuum for the Claude app: setup guide' }];
 const STYLE = [
   ':root{--bg:#fdfdfb;--fg:#1d1d1f;--muted:#5a5a60;--rule:#d9d9de;--code:#eeeef2}',
   '@media (prefers-color-scheme:dark){:root{--bg:#18181b;--fg:#ececf0;--muted:#a3a3ad;--rule:#3a3a42;--code:#2a2a31}}',
@@ -36,7 +41,9 @@ function blocks(markdown) {
   const out = [];
   let open = null; // the paragraph or list being filled; a blank line closes it
   const close = () => { if (open) out.push(open); open = null; };
-  for (const raw of markdown.replace(/\r\n?/g, '\n').split('\n')) {
+  // An HTML comment (lines from <!-- to -->) is a note for whoever edits the source; it never reaches the page.
+  const text = markdown.replace(/\r\n?/g, '\n').replace(/^<!--[\s\S]*?-->[^\n]*(\n|$)/gm, '');
+  for (const raw of text.split('\n')) {
     const line = raw.replace(/\s+$/, '');
     let m;
     if (!line) close();
@@ -57,7 +64,7 @@ function blocks(markdown) {
   return out;
 }
 
-function render(markdown) {
+function render(markdown, title = TITLE) {
   const body = blocks(markdown).map(b => {
     if (b.kind === 'hr') return '<hr>';
     if (b.kind === 'h1' || b.kind === 'h2') return '<' + b.kind + '>' + inline(b.text) + '</' + b.kind + '>';
@@ -67,18 +74,20 @@ function render(markdown) {
     return '<' + b.kind + (b.kind === 'ol' && b.start !== 1 ? ' start="' + b.start + '"' : '') + '>\n' + items.join('\n') + '\n</' + b.kind + '>';
   });
   return ['<!doctype html>', '<html lang="en">', '<head>', '<meta charset="utf-8">',
-    '<meta name="viewport" content="width=device-width, initial-scale=1">', '<title>' + TITLE + '</title>',
+    '<meta name="viewport" content="width=device-width, initial-scale=1">', '<title>' + title + '</title>',
     '<style>', STYLE, '</style>', '</head>', '<body>', '<main>', ...body, '</main>', '</body>', '</html>', ''].join('\n');
 }
 
 if (require.main === module) {
-  // The zip carries only the HTML (GUIDE-CODEX.md is export-ignore), so the source can be missing there.
-  if (!fs.existsSync(SOURCE)) {
-    console.error('Cannot build the guide: ' + SOURCE + ' is not here (the zip carries only the HTML guide; build from the repository).');
-    process.exitCode = 1;
-  } else {
-    fs.writeFileSync(TARGET, render(fs.readFileSync(SOURCE, 'utf8')), 'utf8');
-    console.log('Wrote ' + TARGET);
+  // The zip carries only the HTML (the GUIDE-*.md sources are export-ignore), so a source can be missing there.
+  for (const g of GUIDES) {
+    if (!fs.existsSync(g.source)) {
+      console.error('Cannot build the guide: ' + g.source + ' is not here (the zip carries only the HTML guide; build from the repository).');
+      process.exitCode = 1;
+    } else {
+      fs.writeFileSync(g.target, render(fs.readFileSync(g.source, 'utf8'), g.title), 'utf8');
+      console.log('Wrote ' + g.target);
+    }
   }
 }
-module.exports = { render, SOURCE, TARGET };
+module.exports = { render, SOURCE, TARGET, TITLE, GUIDES };

@@ -36,14 +36,25 @@ code{background:var(--code);border-radius:4px;padding:0.1em 0.3em;font-size:0.95
 <h2>Part 1. Unzip the Continuum folder</h2>
 <ol>
 <li>Find the Continuum zip file (usually in your <strong>Downloads</strong> folder).</li>
-<li>Right-click it and choose <strong>Extract All...</strong></li>
+<li>Right-click it and choose <strong>Properties</strong>. At the bottom of the small window that opens, look for the word <strong>Unblock</strong>. If it is there, tick the box next to it. Then click <strong>OK</strong>.
+<ul>
+<li>Windows marks a file that came from the internet. On some Windows 11 computers the setup file will not open while the zip file carries that mark. Unblock takes the mark off the zip file. It does not change a folder that was already unzipped.</li>
+<li>Do this only for the Continuum zip file you meant to download.</li>
+<li>If there is no Unblock, click <strong>OK</strong> and go on.</li>
+</ul>
+</li>
+<li>Right-click the zip file again and choose <strong>Extract All...</strong></li>
 <li>A small window shows where the folder will go. Leave it as it is and click <strong>Extract</strong>. A normal folder opens with the Continuum files in it.</li>
 </ol>
 <p>Keep this folder. It holds the setup file and the two files for checking and removing Continuum.</p>
 <h2>Part 2. Run the setup file</h2>
 <ol>
 <li>In that folder, double-click the file named <strong>Continuum Setup for Codex</strong>.</li>
-<li>If Windows shows a warning before it opens, choose <strong>Run</strong>. If the warning is a blue box that says "Windows protected your PC", click <strong>More info</strong>, then <strong>Run anyway</strong>.</li>
+<li>If Windows shows a warning before it opens, choose <strong>Run</strong>. If the warning is a blue box that says "Windows protected your PC", click <strong>More info</strong>, then <strong>Run anyway</strong>.
+<ul>
+<li>If the box says <strong>Smart App Control blocked a file that may be unsafe</strong>, it has no Run button. Click <strong>Okay</strong> and go to <strong>If something does not work</strong> near the end of this guide.</li>
+</ul>
+</li>
 <li>A black window opens with a few questions.</li>
 </ol>
 <p><strong>If the window says "Continuum needs Node.js":</strong> Node.js is a free program Continuum runs on. Get it from its own website, not from the Microsoft Store.</p>
@@ -74,7 +85,13 @@ code{background:var(--code);border-radius:4px;padding:0.1em 0.3em;font-size:0.95
 <li>Do not pick the folder named <strong>.continuum</strong> with a dot in front. That one only holds settings. Your notes folder has no dot.</li>
 </ul>
 </li>
-<li>Hold <strong>Ctrl</strong> and press the <strong>comma</strong> key to open Settings. Type <strong>hooks</strong> in the search box and click <strong>Hooks</strong>. Click the row with your notes folder (it says <strong>6 need review</strong>), then click <strong>Trust all</strong>.</li>
+<li>Hold <strong>Ctrl</strong> and press the <strong>comma</strong> key to open Settings. Type <strong>hooks</strong> in the search box and click <strong>Hooks</strong>. Click the row with your notes folder. If it says <strong>6 need review</strong>, click <strong>Trust all</strong>.
+<ul>
+<li>If the search shows two results named Hooks and the first page does not show your notes folder, go back and open the other one.</li>
+<li>Another way into Settings: click the round button with your initials at the bottom left, then <strong>Settings</strong>.</li>
+<li>If the row only says <strong>6 hooks</strong>, they are already trusted from an earlier setup and there is nothing to click.</li>
+</ul>
+</li>
 <li>Go back to the chat screen. Above the message box you should see the name of your notes folder and the words <strong>This computer</strong>. In a small window you may see two small pictures there instead of the words: a folder and a laptop. If it does not say This computer, click it and pick <strong>This computer</strong>.</li>
 <li>Type this and send it: <strong>What are my standing rules?</strong> If the answer lists rules from your notes, Continuum is working.</li>
 </ol>
@@ -88,6 +105,9 @@ code{background:var(--code);border-radius:4px;padding:0.1em 0.3em;font-size:0.95
 <li>Your notes are plain files in your notes folder. Double-click <strong>Continuum Notes</strong> on your Desktop to open it. You can open and edit the notes yourself.</li>
 <li>When Codex is about to delete, move or rewrite a note, it stops and asks you yes or no first. A copy of the note is kept before anything changes.</li>
 <li>A yes to a delete covers deletes in your notes for one hour.</li>
+<li>When a note grows too large, Codex tells you and offers to split it into smaller notes. Nothing is ever shortened or thrown away.</li>
+<li>Codex is told to read the whole note, and the notes that note points to, before it answers. When your notes do not hold the answer, it is told to say so and tell you where it looked.</li>
+<li>When Codex needs something from you, it asks one question at a time. That is one of your standing rules, in the note <strong>Working Agreements</strong>. You can change any of them.</li>
 </ul>
 <p><strong>One thing to know:</strong></p>
 <ul>
@@ -105,6 +125,7 @@ code{background:var(--code);border-radius:4px;padding:0.1em 0.3em;font-size:0.95
 <p>On a cloud or network drive Codex shows a warning that it may not work safely there.</p>
 <h2>If something does not work</h2>
 <ul>
+<li><strong>A box says "Smart App Control blocked a file that may be unsafe".</strong> The unzipped files still carry the mark Windows puts on files from the internet. Click <strong>Okay</strong>. Delete the folder that Extract All made (keep the zip file). Then do Part 1 again and tick <strong>Unblock</strong> in step 2, and double-click the setup file again. If Windows still blocks it, stop and send the exact words in the box to whoever gave you Continuum. Leave Smart App Control on.</li>
 <li><strong>The answer does not mention your rules.</strong> Check three things: you are in the <strong>Codex</strong> screen, your notes folder is the project, and it says <strong>This computer</strong> above the message box. Then start a new chat and ask again.</li>
 <li><strong>Still nothing.</strong> Double-click <strong>Continuum Check for Codex</strong> and do what it says. The most common miss is the <strong>Trust all</strong> click in step 4.</li>
 <li><strong>The setup window says "Something did not work".</strong> Nothing else was changed after that point. The window names a log file with the details. Send that file to whoever gave you Continuum.</li>
