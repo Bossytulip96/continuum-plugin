@@ -1,5 +1,7 @@
 # Continuum
 
+**For now Continuum is for Windows 11 with Node.js.** It has not been tested on Windows 10, and there is no Mac version yet.
+
 Continuum gives your AI coding app a memory made of plain Markdown notes. It also asks you before risky steps, such as deleting a note.
 
 ## What is ready today
