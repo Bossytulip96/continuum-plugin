@@ -16,7 +16,7 @@ Tested on Windows 11, with Smart App Control on: setup, Check and Remove for Cod
 
 ## Technical details
 
-Continuum 0.6.3 is an MIT-licensed plugin for Claude Code, with a Codex install (INSTALL-CODEX.md), a Hermes Agent install (INSTALL-HERMES.md) and, on Windows, a double-click install for the Claude desktop app (Continuum Setup for Claude, guide in Continuum Guide for Claude.html), that gives each person a plain Markdown memory vault. Node 20 or later is required; there are no npm dependencies.
+Continuum 0.6.4 is an MIT-licensed plugin for Claude Code, with a Codex install (INSTALL-CODEX.md), a Hermes Agent install (INSTALL-HERMES.md) and, on Windows, a double-click install for the Claude desktop app (Continuum Setup for Claude, guide in Continuum Guide for Claude.html), that gives each person a plain Markdown memory vault. Node 20 or later is required; there are no npm dependencies.
 
 ## How it works in 10 lines
 
