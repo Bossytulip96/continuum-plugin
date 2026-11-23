@@ -14,7 +14,8 @@ function normalize(value) {
     const drive = p.match(/^\/(?:cygdrive\/|mnt\/)?([a-zA-Z])(?=\/|$)/);
     if (drive) p = drive[1].toUpperCase() + ':' + p.slice(drive[0].length);
   }
-  return p.replace(/[/\\]/g, path.sep);
+  // Outside Windows a backslash is an ordinary sign that a file name may hold, so it is left alone there.
+  return process.platform === 'win32' ? p.replace(/[/\\]/g, path.sep) : p;
 }
 // Codex keeps its own config folder, so approvals, logs and session state never mix
 // with the Claude Code install. CONTINUUM_CONFIG still wins on either host.
@@ -28,10 +29,29 @@ function lexical(base, target) {
   const rel = path.relative(path.resolve(base), path.resolve(target));
   return rel === '' || (!rel.startsWith('..' + path.sep) && rel !== '..' && !path.isAbsolute(rel));
 }
+// Where a file sits inside a folder, for copies and log lines. The spelling is used when it stays inside the
+// folder. When it does not (the file was named through a junction or a link that leads into the folder), and
+// always on a Mac (the same file can be named in another letter case), both are read the way the disk has
+// them, and that reading is used only when it stays inside the folder. So a link that leads out of the
+// folder, and a file that is not there, keep their own spelling.
+const escapes = r => !r || path.isAbsolute(r) || /^\.\.(?:[\\/]|$)/.test(r);
+function relative(base, target) {
+  const spelled = path.relative(base, target);
+  if (process.platform !== 'darwin' && !escapes(spelled)) return spelled;
+  try {
+    const r = path.relative(realpath(path.resolve(base)), realpath(path.resolve(target)));
+    if (!escapes(r)) return r;
+  } catch (_) { /* as spelled */ }
+  return spelled;
+}
+// On a Mac the disk itself is asked how it spells the path: most Mac disks take Notes and notes for one folder
+// (and keep accents in their own form), some do not, and only the disk knows. So a note named in another letter
+// case is found on the first kind and stays a different file on the second.
+const realpath = process.platform === 'darwin' ? fs.realpathSync.native : fs.realpathSync;
 function physical(p) {
   try {
     fs.lstatSync(p);
-    return fs.realpathSync(p);
+    return realpath(p);
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
     try { fs.lstatSync(p); throw new Error('Unresolved symbolic link'); }
@@ -190,4 +210,4 @@ function runCli(handler) {
   Promise.resolve().then(handler).catch(e => { console.error(e.message); process.exitCode = 1; });
 }
 module.exports = { configPath, normalize, inside, covers, pluginPath, configFile, vaultPath, oneLine,
-  resolveTarget, validate, load, host, stamp, date, ttl, sessionFile, transcriptPath, logError, hook, runCli };
+  resolveTarget, relative, validate, load, host, stamp, date, ttl, sessionFile, transcriptPath, logError, hook, runCli };

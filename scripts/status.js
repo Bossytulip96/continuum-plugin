@@ -73,6 +73,7 @@ function check() {
     }
   }
   if (C.host.isHermes()) require('./lib/hermes-setup').check(process.argv.slice(2), c, say);
+  if (C.host.isAntigravity()) require('./lib/antigravity-setup').check(c, say);
   if (C.host.name() === 'claude') claudeHooks(process.argv.slice(2).includes('--guided'), say);
   return { ok, lines };
 }

@@ -1,10 +1,10 @@
 'use strict';
-// Double-click setup on Windows for Codex ("Continuum Setup for Codex.cmd", --host codex) and for the Claude
-// desktop app ("Continuum Setup for Claude.cmd", --host claude): plain questions, one at
+// Double-click setup on Windows for Codex ("Continuum Setup for Codex.cmd", --host codex), for the Claude
+// desktop app ("Continuum Setup for Claude.cmd", --host claude) and for Google Antigravity
+// ("Continuum Setup for Antigravity.cmd", --host antigravity): plain questions, one at
 // a time, each with a default taken by pressing Enter. --check and --remove back the other two .cmd
 // files. Any failure is one plain sentence plus the path of a log file; never a stack trace.
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const G = require('./lib/guided');
 
@@ -14,7 +14,12 @@ const fail = (plain, detail) => { throw Object.assign(new Plain(plain), { detail
 
 async function setupFlow(ask) {
   const claude = G.isClaude();
-  if (claude) {
+  const antigravity = G.isAntigravity();
+  if (antigravity) {
+    say('This sets up Continuum, a notes memory for Google Antigravity. You answer a few questions; press Enter to take the suggestion in [brackets].',
+      'Nothing is changed outside three places: the Continuum program folder (it goes into Antigravity\'s own plugins folder), its settings folder, and the notes folder you choose.',
+      'It also puts one shortcut on your Desktop, named Continuum Notes, that opens your notes folder.');
+  } else if (claude) {
     say('This sets up Continuum, a notes memory for the Claude app (its Code tab). You answer a few questions; press Enter to take the suggestion in [brackets].',
       'It changes these places only: the Continuum program folder, its settings folder, and the notes folder you choose.',
       'It also puts one shortcut on your Desktop, named Continuum Notes, that opens your notes folder.',
@@ -26,15 +31,15 @@ async function setupFlow(ask) {
   }
   let name = '';
   while (!name) name = (await ask('What is your name?')).replace(/\s+/g, ' ');
-  const profile = process.env.USERPROFILE || os.homedir();
   let vault = '';
   while (!vault) {
-    const answer = path.resolve(G.unquote(await ask('Where should your notes folder live?', path.join(profile, 'Documents', 'Continuum'))));
+    const answer = path.resolve(G.typed(await ask('Where should your notes folder live?', G.notesDefault())));
+    if (G.inProgram(answer)) { say('That folder belongs to Continuum\'s own program or settings. Please pick a different folder for your notes.'); continue; }
     const kind = G.folderKind(answer);
     if (kind === 'foreign') { say('That folder already holds other files. Please pick a different folder (a new or empty one).'); continue; }
     if (kind === 'vault') say('That looks like an existing Continuum notes folder. It will be kept as it is.');
-    // The warning is what Codex itself shows; nothing is known about the Claude app here, so it says nothing.
-    if (!claude && G.remote(answer) === true) {
+    // The warning is what Codex itself shows; nothing is known about the Claude app or Antigravity here, so it says nothing.
+    if (!claude && !antigravity && G.remote(answer) === true) {
       say('Codex shows a "may not work safely here" warning for cloud or network drives.');
       if (!G.yes(await ask('Use it anyway? (y/N)'), false)) continue;
     }
@@ -63,14 +68,16 @@ async function setupFlow(ask) {
   if (G.copyPackage()) say('Copying the Continuum program to ' + root + ' ...');
   else say('The Continuum program is already in ' + root + '.');
   say(claude ? 'Creating your settings and notes folder, and adding Continuum\'s hook lines to Claude\'s settings file ...'
-    : 'Creating your settings, notes folder and Codex hooks ...');
+    : antigravity ? 'Creating your settings and notes folder ...' : 'Creating your settings, notes folder and Codex hooks ...');
   const setup = G.node(root, 'setup.js', ['--person', name, '--vault', vault, '--machine', machine, '--timezone', zone,
-    '--autonomy', 'ask', ...(claude ? ['--allow-folder', 'yes', '--hooks', 'user'] : ['--allow-folder', 'no', '--hooks', 'project'])]);
+    '--autonomy', 'ask', ...(claude ? ['--allow-folder', 'yes', '--hooks', 'user']
+      : ['--allow-folder', 'no', '--hooks', antigravity ? 'plugin' : 'project'])]);
   // Claude's settings file that cannot be read is left alone by setup.js; here that is a failure, said plainly.
   if (claude && /could not be read as (Claude Code )?settings/.test(setup.out)) {
     fail('Claude\'s settings file could not be read, so it was left alone and Continuum\'s hook lines were not added', setup.out);
   }
-  if (!setup.ok) fail(claude ? 'Setting up the notes folder and Claude\'s hook lines did not work' : 'Setting up the notes folder and the Codex hooks did not work', setup.out);
+  if (!setup.ok) fail(claude ? 'Setting up the notes folder and Claude\'s hook lines did not work'
+    : antigravity ? 'Setting up the settings and the notes folder did not work' : 'Setting up the notes folder and the Codex hooks did not work', setup.out);
   say('Checking the result ...');
   const todo = G.verdict(G.node(root, 'status.js', claude ? ['--guided'] : []).out).filter(t => !/trust/i.test(t));
   if (todo.length) fail('The check after setup found a problem: ' + todo[0], todo.join('\n'));
@@ -83,7 +90,7 @@ async function setupFlow(ask) {
     ...(linked ? ['  Desktop shortcut: ' + G.SHORTCUT + ' (opens your notes folder)'] : []),
     ...(claude ? ['  Claude\'s settings file: ' + (setup.out.match(/^Claude hooks (?:written|unchanged): (.+?)(?: \(|$)/m) || [])[1],
       ...(copy ? ['  Copy of it as it was: ' + copy] : [])] : []),
-    '', steps.length + ' steps are left, in ' + (claude ? 'the Claude app' : 'the ChatGPT app') + ':', ...steps.map((s, i) => '  ' + (i + 1) + '. ' + s),
+    '', steps.length + ' steps are left, in ' + (claude ? 'the Claude app' : antigravity ? 'Antigravity' : 'the ChatGPT app') + ':',...steps.map((s, i) => '  ' + (i + 1) + '. ' + s),
     '', 'The guide is here: ' + G.guideFile(root));
 }
 async function checkFlow() {
@@ -96,6 +103,7 @@ async function checkFlow() {
 }
 async function removeFlow(ask) {
   if (G.isClaude()) return removeClaude(ask);
+  if (G.isAntigravity()) return removeAntigravity(ask);
   say('This removes only Continuum\'s entries from the Codex hooks file, so Codex stops running Continuum.',
     'Your notes folder and Continuum\'s settings stay exactly as they are.');
   if (!/^yes$/i.test(await ask('Type YES to remove, or just press Enter to stop:'))) { say('Nothing was changed.'); return; }
@@ -113,6 +121,26 @@ async function removeClaude(ask) {
   if (!result.ok) fail('Removing Continuum\'s hook lines from Claude\'s settings file did not work', result.out);
   say(/^Removed/m.test(result.out) ? 'Done. The Claude app will no longer run Continuum. Your notes and settings are still there.'
     : 'There were no Continuum hook lines to remove. Nothing was changed.');
+}
+// Antigravity runs Continuum because the program folder sits in its plugins folder, so removing means taking
+// that folder out. A Continuum group in Antigravity's own hooks file (the other way in INSTALL-ANTIGRAVITY.md)
+// is taken out too. This window's own folder cannot be removed while it is open, so that case is said plainly.
+async function removeAntigravity(ask) {
+  const dir = G.permanent();
+  say('This removes Continuum\'s program folder from Antigravity\'s plugins folder, so Antigravity stops running Continuum.',
+    'The program folder is ' + dir,
+    'Your notes folder and Continuum\'s settings stay exactly as they are.');
+  if (G.same(G.SOURCE, dir)) fail('This file was opened from the program folder itself, which cannot remove itself. ' +
+    'Open "Continuum Remove for Antigravity" from the Continuum folder you unzipped instead');
+  if (!/^yes$/i.test(await ask('Type YES to remove, or just press Enter to stop:'))) { say('Nothing was changed.'); return; }
+  // The safety checks first, so a refusal leaves everything as it was, the global hooks file included.
+  G.removeProgram(true);
+  const result = G.node(G.installedRoot(), 'setup.js', ['--remove']);
+  if (!result.ok) fail('Removing Continuum from Antigravity did not work', result.out);
+  const removed = G.removeProgram();
+  say(removed || /^Removed/m.test(result.out)
+    ? 'Done. Antigravity will no longer run Continuum. Your notes and settings are still there. If Antigravity is open, close it and open it again.'
+    : 'Continuum was not in Antigravity. Nothing was changed.');
 }
 async function main() {
   const args = process.argv.slice(2);

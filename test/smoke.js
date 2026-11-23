@@ -272,7 +272,7 @@ try {
   });
   step('plugin exec contract and path containment reject traversal and dangling links', () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin', 'plugin.json'), 'utf8'));
-    assert.equal(manifest.name, 'continuum'); assert.equal(manifest.version, '0.6.4'); assert.equal(manifest.license, 'MIT');
+    assert.equal(manifest.name, 'continuum'); assert.equal(manifest.version, '0.8.0'); assert.equal(manifest.license, 'MIT');
     const registry = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'hooks.json'), 'utf8')).hooks;
     assert.deepEqual(Object.keys(registry).sort(), ['PreToolUse', 'SessionEnd', 'SessionStart', 'Stop', 'UserPromptSubmit']);
     for (const registrations of Object.values(registry)) for (const registration of registrations) {

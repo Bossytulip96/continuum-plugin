@@ -102,5 +102,20 @@ module.exports = function cases({ vault, root }) {
     ['Bash', { command: 'node "' + split + '" "' + plan + '"\n--dry-run' }, 'vault-delete'],
     ['Bash', { command: 'node scripts/split-note.js --host codex --dry-run "' + plan + '"' }, 'allow'],
     ['Bash', { command: 'node "' + split + '" "--dry-run" "' + plan + '"' }, 'allow'],
+    // The Mac and Linux ways to change or remove a note, and to change the computer (added with the Mac, 2026-11-23).
+    ['Bash', { command: 'trash ' + posixHome }, 'vault-delete'],
+    ['Bash', { command: "sed -i '' 's/a/b/' " + posixHome }, 'vault-delete'],
+    ['Bash', { command: 'perl -pi -e "s/a/b/" ' + posixHome }, 'vault-delete'],
+    ['Bash', { command: 'ditto /tmp/other.md ' + posixHome }, 'vault-delete'],
+    ['Bash', { command: 'sed -n 1,5p ' + posixHome }, 'allow'],
+    ['Bash', { command: 'defaults read com.sample.app' }, 'allow'],
+    ['Bash', { command: 'defaults write com.sample.app key -bool true' }, 'system-change'],
+    ['Bash', { command: 'launchctl load /tmp/sample.plist' }, 'system-change'],
+    ['Bash', { command: 'sudo softwareupdate --list' }, 'system-change'],
+    ['Bash', { command: 'osascript -e "tell application \\"Finder\\" to empty trash"' }, 'system-change'],
+    // zsh and sh write a space in a name as backslash-space; a Mac's disk does not tell Home.md from HOME.MD.
+    ...(process.platform === 'win32' ? [] : [['Bash', { command: 'rm ' + posixVault + '/Knowledge/Working\\ Agreements.md' }, 'vault-delete']]),
+    // (Only where the disk really does that: a Mac disk can also be set to tell them apart.)
+    ...(process.platform === 'darwin' && require('fs').existsSync(posixHome.toUpperCase()) ? [['Bash', { command: 'rm "' + posixHome.toUpperCase() + '"' }, 'vault-delete']] : []),
   ];
 };

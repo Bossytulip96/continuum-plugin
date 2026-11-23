@@ -25,6 +25,8 @@ node "<plugin folder>/scripts/setup.js" --person "<name>" --vault "<absolute fol
 
 **In Codex** (OpenAI's app or CLI, not Claude Code), add `--host codex` right after the script path, and answer `no` to the sixth question (it is about Claude Code's settings). The script then also writes the vault's Codex hooks file and AGENTS.md and prints five remaining steps: quit and reopen the Codex app, File > Open Folder > the vault, Settings > Hooks > Trust all, pick "On your computer" at the message box, then ask "What are my standing rules?". Show those steps to the person exactly as printed. Everything below is for Claude Code.
 
+**In Google Antigravity**, add `--host antigravity` right after the script path, skip the sixth question and leave `--allow-folder` out (it is about Claude Code's settings). The script writes the Antigravity config and prints three remaining steps: quit Antigravity and open it again, open the vault folder as the workspace, then ask "What are my standing rules?". Show those steps to the person exactly as printed. Everything below is for Claude Code.
+
 The script does the whole job, including the allowed-folder line when the answer was yes. Never read or edit the Claude Code settings file yourself: that is what makes extra prompts appear. The script refuses to run without `--allow-folder`, so the sixth question cannot be skipped.
 
 - With yes, when Continuum was already set up before, the gate treats this command as a system change and Claude Code shows the person a Continuum prompt. Say beforehand, in one line, that the prompt is expected and the answer is theirs. If they choose No there, run the same command again with `--allow-folder "no"`.

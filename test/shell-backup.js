@@ -96,6 +96,13 @@ try {
     assert.equal(gate('claude', 'Bash', 'rm -r "' + big + '"'), 'deny'); assert.equal(copies().length, 0);
     assert(fs.existsSync(odd));
   });
+  if (process.platform !== 'win32') step('zsh and sh: a name written with backslash-space, and on a Mac another letter case, is copied before the delete', () => {
+    const spaced = path.join(vault, 'notes-and-ideas', 'Spaced note.md'); fs.writeFileSync(spaced, 'kept\n');
+    assert.equal(gate('claude', 'Bash', 'rm ' + spaced.replace(/ /g, '\\ ')), 'ask'); assert.equal(copiesOf(spaced).length, 1);
+    if (process.platform !== 'darwin' || !fs.existsSync(spaced.toUpperCase())) return; // a Mac disk can be set to tell the two apart
+    reset(); assert.equal(gate('claude', 'Bash', 'rm "' + spaced.toUpperCase() + '"'), 'ask');
+    assert.equal(copiesOf(spaced).length, 1); assert(copies()[0].endsWith(path.join('notes-and-ideas', 'Spaced note.md')), copies()[0]);
+  });
   console.log('PASS shell-backup: ' + checks + ' groups');
 } catch (error) {
   console.error('FAIL shell-backup after ' + checks + ' groups: ' + error.stack);

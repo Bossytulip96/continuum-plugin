@@ -1,7 +1,8 @@
 'use strict';
-// Builds "Continuum Guide for Codex.html" from GUIDE-CODEX.md and "Continuum Guide for Claude.html" from
-// GUIDE-CLAUDE.md, each from its own source, so the guide opens in the browser with a
+// Builds "Continuum Guide for Codex.html" from GUIDE-CODEX.md, "Continuum Guide for Claude.html" from
+// GUIDE-CLAUDE.md and "Continuum Guide for Antigravity.html" from GUIDE-ANTIGRAVITY.md, each from its own source, so the guide opens in the browser with a
 // double-click (Windows asks which app opens a .md file, and Notepad may show an "untrusted source" box).
+// The three Mac guides are built the same way: "Continuum Guide for <App> on a Mac.html" from GUIDE-<APP>-MAC.md.
 // Only the markdown the guide uses: # and ## headings, paragraphs, 1. and - lists, a - list nested under a
 // numbered item (3 spaces in), indented continuation lines, **bold**, `code`, --- and <!-- comments --> (dropped).
 // No dependencies.
@@ -13,8 +14,14 @@ const SOURCE = path.join(ROOT, 'GUIDE-CODEX.md');
 const TARGET = path.join(ROOT, 'Continuum Guide for Codex.html');
 const TITLE = 'Continuum for Codex: setup guide';
 // Every guide this script builds. SOURCE, TARGET and TITLE above are the Codex one, kept for the tests.
+// The three Windows guides come first and keep their places (the tests read GUIDES[1] and the first Antigravity
+// entry as the Windows ones); the Mac guides follow.
 const GUIDES = [{ source: SOURCE, target: TARGET, title: TITLE },
-  { source: path.join(ROOT, 'GUIDE-CLAUDE.md'), target: path.join(ROOT, 'Continuum Guide for Claude.html'), title: 'Continuum for the Claude app: setup guide' }];
+  { source: path.join(ROOT, 'GUIDE-CLAUDE.md'), target: path.join(ROOT, 'Continuum Guide for Claude.html'), title: 'Continuum for the Claude app: setup guide' },
+  { source: path.join(ROOT, 'GUIDE-ANTIGRAVITY.md'), target: path.join(ROOT, 'Continuum Guide for Antigravity.html'), title: 'Continuum for Google Antigravity: setup guide' },
+  { source: path.join(ROOT, 'GUIDE-CLAUDE-MAC.md'), target: path.join(ROOT, 'Continuum Guide for Claude on a Mac.html'), title: 'Continuum for the Claude app on a Mac: setup guide' },
+  { source: path.join(ROOT, 'GUIDE-CODEX-MAC.md'), target: path.join(ROOT, 'Continuum Guide for Codex on a Mac.html'), title: 'Continuum for Codex on a Mac: setup guide' },
+  { source: path.join(ROOT, 'GUIDE-ANTIGRAVITY-MAC.md'), target: path.join(ROOT, 'Continuum Guide for Antigravity on a Mac.html'), title: 'Continuum for Google Antigravity on a Mac: setup guide' }];
 const STYLE = [
   ':root{--bg:#fdfdfb;--fg:#1d1d1f;--muted:#5a5a60;--rule:#d9d9de;--code:#eeeef2}',
   '@media (prefers-color-scheme:dark){:root{--bg:#18181b;--fg:#ececf0;--muted:#a3a3ad;--rule:#3a3a42;--code:#2a2a31}}',

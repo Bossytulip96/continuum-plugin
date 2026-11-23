@@ -176,7 +176,9 @@ try {
     console.log(out.trim().split('\n').map(l => '    ' + l).join('\n'));
   });
   step('the Python adapter, driven like Hermes would against a stub ctx', () => {
-    const python = [process.env.CONTINUUM_PYTHON, 'C:\\Python314\\python.exe', 'python3', 'python'].filter(Boolean)
+    // A Mac without Apple's command line tools answers "python3" with a window that offers to install them, so there only CONTINUUM_PYTHON is tried.
+    const bare = process.platform === 'darwin' && spawnSync('xcode-select', ['-p'], { encoding: 'utf8' }).status !== 0;
+    const python = [process.env.CONTINUUM_PYTHON, ...(bare ? [] : ['C:\\Python314\\python.exe', 'python3', 'python'])].filter(Boolean)
       .find(p => { try { return spawnSync(p, ['--version'], { encoding: 'utf8' }).status === 0; } catch (_) { return false; } });
     if (!python) { console.log('SKIP hermes python: no Python found (set CONTINUUM_PYTHON)'); return; }
     const r = spawnSync(python, ['-I', path.join(root, 'test', 'hermes_adapter_test.py'), hermesHome, vault],

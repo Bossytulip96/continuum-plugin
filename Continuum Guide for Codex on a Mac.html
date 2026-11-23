@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Continuum for Codex on a Mac: setup guide</title>
+<style>
+:root{--bg:#fdfdfb;--fg:#1d1d1f;--muted:#5a5a60;--rule:#d9d9de;--code:#eeeef2}
+@media (prefers-color-scheme:dark){:root{--bg:#18181b;--fg:#ececf0;--muted:#a3a3ad;--rule:#3a3a42;--code:#2a2a31}}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:46em;margin:0 auto;padding:1.5em 16px 3em;overflow-wrap:break-word}
+h1{font-size:1.7em;line-height:1.25;margin:0.4em 0 0.6em}
+h2{font-size:1.3em;line-height:1.3;margin:1.8em 0 0.5em}
+p,ol,ul{margin:0 0 1em}
+ol,ul{padding-left:1.6em}
+li{margin:0.35em 0}
+li ul{margin:0.35em 0 0}
+hr{border:0;border-top:1px solid var(--rule);margin:2em 0}
+code{background:var(--code);border-radius:4px;padding:0.1em 0.3em;font-size:0.95em}
+</style>
+</head>
+<body>
+<main>
+<h1>Continuum for Codex: setup guide (Mac)</h1>
+<p>Continuum gives Codex a memory. Your notes live in a folder on your Mac. Codex reads the right note when you bring up its topic, asks you before it deletes or moves a note, and keeps a short record of every session.</p>
+<p>On a Mac the setup file is started from the Terminal app, and this guide shows every step of that. You type two letters, answer a few questions, and then make a few clicks in the ChatGPT app.</p>
+<p><strong>You need:</strong></p>
+<ul>
+<li>A Mac. Continuum was tested on macOS 14 (Intel). Node.js, the program Continuum runs on, asks for macOS 13.5 or later. Continuum has not been tested on a Mac with an Apple chip, or on macOS 15 or later.</li>
+<li>The ChatGPT desktop app, on this Mac and signed in, with Codex in it.</li>
+<li>The Continuum zip file.</li>
+<li>About 20 minutes.</li>
+</ul>
+<hr>
+<h2>Part 1. Get Node.js</h2>
+<p>Node.js is a free program Continuum runs on. If it is already on your Mac, go on to Part 2. If you are not sure, go on to Part 2 as well: the setup window tells you when Node.js is missing, and you can come back here.</p>
+<ol>
+<li>In your browser, open <strong>nodejs.org/en/download</strong>.</li>
+<li>The top of that page shows commands. You do not need them. Scroll down to the line <strong>Or get a prebuilt Node.js for macOS</strong>.</li>
+<li>Click the green button named <strong>macOS Installer (.pkg)</strong>. A file lands in your <strong>Downloads</strong> folder. Its name starts with <strong>node-v</strong> and ends in <strong>.pkg</strong>.</li>
+<li>Open that file. A window opens that lists its pages: Introduction, Licence, Destination Select, Installation Type, Installation and Summary.</li>
+<li>Click <strong>Continue</strong>, then <strong>Continue</strong> again, then <strong>Agree</strong>, then <strong>Install</strong>.</li>
+<li>Your Mac asks for your Mac password. The box says <strong>Installer is trying to install new software</strong>. Type your Mac password there and click <strong>Install Software</strong>.</li>
+<li>Wait for the words <strong>The installation was completed successfully</strong>. Then click <strong>Close</strong>.</li>
+<li>Your Mac asks whether to move the installer to the Bin. Click <strong>Keep</strong> or <strong>Move to Bin</strong>. Either one is fine.</li>
+</ol>
+<h2>Part 2. Unzip the Continuum folder</h2>
+<ol>
+<li>Find the Continuum zip file in your <strong>Downloads</strong> folder.</li>
+<li>Double-click it there. Your Mac unpacks it into a folder named <strong>Continuum</strong>, next to the zip file.</li>
+<li>Open the <strong>Continuum</strong> folder. Inside are files for Windows, with names that end in <strong>.cmd</strong>, files for the Mac, with names that end in <strong>.command</strong>, and the guides. On a Mac, use the files that end in <strong>.command</strong>.</li>
+</ol>
+<p>Keep this folder, and leave its window open for Part 3. It holds the setup file and the two files for checking and removing Continuum.</p>
+<h2>Part 3. Start the setup file from Terminal</h2>
+<p>A double-click on the setup file does not work on a Mac when the zip file came from the internet. Your Mac shows a box that says <strong>"Continuum Setup for Codex.command" cannot be opened because it is from an unidentified developer</strong>, with one button, <strong>OK</strong>. That is the Mac's rule for files from the internet whose maker has not paid Apple to sign them. If you see that box, click <strong>OK</strong>.</p>
+<p>The way that works is to start the file from the <strong>Terminal</strong> app. Terminal is an app on your Mac with a window you type into. No setting on your Mac is changed by this.</p>
+<ol>
+<li>Open <strong>Terminal</strong>: open <strong>Finder</strong>, then <strong>Applications</strong>, then <strong>Utilities</strong>, then <strong>Terminal</strong>.
+<ul>
+<li>Another way: open <strong>Launchpad</strong>, type <strong>Terminal</strong> and open it.</li>
+</ul>
+</li>
+<li>Click in the Terminal window. Type the two letters <strong>sh</strong> and then one space. Do not press Return yet.</li>
+<li>Drag the file <strong>Continuum Setup for Codex.command</strong> from the Finder window into the Terminal window and let go. Its full name appears after <strong>sh</strong>.</li>
+<li>Press <strong>Return</strong>. The Terminal window now shows a few questions.</li>
+</ol>
+<p><strong>If the window says "Continuum needs Node.js":</strong> do Part 1, then do steps 2 to 4 here again.</p>
+<h2>Part 4. Answer the questions</h2>
+<p>Type your answer and press <strong>Return</strong>. When a suggestion is shown in [brackets], pressing <strong>Return</strong> alone accepts it. The window calls this key Enter.</p>
+<ol>
+<li><strong>What is your name?</strong> Type your first name. Press Return.</li>
+<li><strong>Where should your notes folder live?</strong> Press Return to accept the suggestion: a new folder named Continuum in your home folder, kept on this Mac. The brackets show its full address. The setup also puts an item named <strong>Continuum Notes</strong> on your Desktop that opens your notes folder, so you can always find it.
+<ul>
+<li>To use another folder, type its address. The address may start with <code>~/</code>, which stands for your home folder, for example <code>~/My Notes</code>. You can also drag a folder from a Finder window into the Terminal window.</li>
+</ul>
+</li>
+<li><strong>What should this computer be called in your notes?</strong> Press Return to accept the suggestion.</li>
+<li><strong>Your time zone looks like ... Is that right?</strong> Press Return if it is right.</li>
+<li>The window lists what will be set up, under <strong>Here is what will be set up:</strong>. One of its lines is <strong>Desktop shortcut: Continuum Notes</strong>. At <strong>Go ahead?</strong> press Return.</li>
+</ol>
+<p>The window then says <strong>Done. Continuum is set up</strong>. Under that it names the program folder, the settings folder, your notes folder and the Desktop shortcut. The program folder is the folder <strong>continuum</strong>, inside <strong>plugins</strong>, inside <strong>.codex</strong>, in your home folder. The settings folder is the folder <strong>codex</strong> inside <strong>.continuum</strong> in your home folder.</p>
+<p>Then the window lists the six steps that are left. Those same steps are in Part 5. The last line says <strong>You can close this window now.</strong> You can leave the window open until Part 5 is done: its line <strong>Notes folder:</strong> shows the address of your notes folder.</p>
+<h2>Part 5. Six steps in the ChatGPT app</h2>
+<p>On a Mac the menus of an app are in the bar at the very top of the screen, next to the apple.</p>
+<ol>
+<li>In the bar at the very top of the screen click <strong>ChatGPT</strong>, then <strong>Quit ChatGPT</strong>. Then open the app again. (The red button in the corner only closes the window, so use Quit ChatGPT.)
+<ul>
+<li>To open the app again, use <strong>Launchpad</strong> or the <strong>Applications</strong> folder.</li>
+</ul>
+</li>
+<li>At the top left of the window, look at the word with the small arrow next to it. If it says <strong>ChatGPT</strong>, click it and pick <strong>Codex</strong>. If it already says <strong>Codex</strong>, go on to the next step.</li>
+<li>In the bar at the very top of the screen click <strong>File</strong>, then <strong>Open Folder</strong>. In the left list click <strong>Desktop</strong>, click <strong>Continuum Notes</strong> once, then click <strong>Open</strong>. Do not pick the folder named <strong>.continuum</strong> with a dot in front (that one only holds settings), and do not pick the Continuum folder in Downloads (that one is the program you unzipped). If a box then asks <strong>Trust this folder?</strong>, check that it names your notes folder and click <strong>Trust folder</strong>.
+<ul>
+<li>Continuum Notes shows in the folder window as a folder. The buttons at the bottom are <strong>Cancel</strong> and <strong>Open</strong>.</li>
+<li>If you do not see Continuum Notes there, the setup window shows the address of your notes folder on the line <strong>Notes folder:</strong>. Go to that folder instead.</li>
+<li>The box <strong>Trust this folder?</strong> has the buttons <strong>Trust folder</strong> and <strong>Cancel</strong>.</li>
+</ul>
+</li>
+<li>Open Settings: in the bar at the very top of the screen click <strong>ChatGPT</strong>, then <strong>Settings</strong>. (Another way: hold the <strong>Command</strong> key and press the <strong>comma</strong> key.) Type <strong>hooks</strong> in the search box and click <strong>Hooks</strong>. If that page does not show your notes folder, go back and open the other Hooks result. Click the row with your notes folder. If it says <strong>6 need review</strong>, click <strong>Trust all</strong>. If it only says <strong>6 hooks</strong>, they are already trusted from an earlier setup and there is nothing to click.
+<ul>
+<li>In the test on a Mac, the row showed <strong>6 hooks</strong> and <strong>6 need review</strong>. A click on the row showed the six hooks and the <strong>Trust all</strong> button. After Trust all, every switch was on.</li>
+</ul>
+</li>
+<li>Go back to the chat screen. Above the message box you should see the name of your notes folder and the words <strong>This computer</strong>. In a small window you may see two small pictures there instead of the words: a folder and a laptop. If it does not say This computer, click it and pick <strong>This computer</strong>.</li>
+<li>Type this and send it: <strong>What are my standing rules?</strong> If the answer lists rules from your notes, Continuum is working.</li>
+</ol>
+<h2>Part 6. Check it any time</h2>
+<p>Start the file <strong>Continuum Check for Codex.command</strong> from Terminal, the same way as the setup file in Part 3: type <strong>sh</strong> and one space, drag the file into the Terminal window, press <strong>Return</strong>. It changes nothing. It says <strong>Everything is in place</strong>, or it names what is missing and the one thing to do about it.</p>
+<hr>
+<h2>Using it day to day</h2>
+<ul>
+<li>Open the ChatGPT app, switch to <strong>Codex</strong>, and open your notes folder the same way as in step 3 of Part 5.</li>
+<li>Start a new chat there. Your rules and start page are loaded for Codex at the start of every chat.</li>
+<li>Your notes are plain files in your notes folder. Double-click <strong>Continuum Notes</strong> on your Desktop to open it. You can open and edit the notes yourself.</li>
+<li>When Codex is about to delete, move or rewrite a note, it stops and asks you yes or no first, in the chat. After your yes it goes on. A copy of the note is kept before anything changes, in the folder <strong>.backups</strong> inside your notes folder.</li>
+<li>A yes to a delete covers deletes in your notes for one hour.</li>
+<li>When a note grows too large, Codex tells you and offers to split it into smaller notes. Nothing is ever shortened or thrown away.</li>
+<li>Codex is told to read the whole note, and the notes that note points to, before it answers. When your notes do not hold the answer, it is told to say so and tell you where it looked.</li>
+<li>When Codex needs something from you, it asks one question at a time. That is one of your standing rules, in the note <strong>Working Agreements</strong>. You can change any of them.</li>
+</ul>
+<p><strong>One thing to know:</strong></p>
+<ul>
+<li>Continuum only works in chats that run on <strong>This computer</strong>, in the Codex screen, inside your notes folder. A chat that runs in the cloud does not load your notes.</li>
+</ul>
+<h2>Where your notes live</h2>
+<p>Continuum is built to keep your notes on your Mac initially. The suggested folder is in your home folder and not inside Documents. On a Mac, Documents is often kept in iCloud, and the Mac then asks a question of its own before an app may read it. If you want your notes somewhere else, you can move them. That is up to you.</p>
+<p>To move your notes:</p>
+<ol>
+<li>In the bar at the very top of the screen click <strong>ChatGPT</strong>, then <strong>Quit ChatGPT</strong>.</li>
+<li>Move your Continuum notes folder to the new place, the way you would move any folder.</li>
+<li>Start <strong>Continuum Setup for Codex.command</strong> from Terminal again, the same way as in Part 3. At the question <strong>Where should your notes folder live?</strong> type the address of the folder in its new place, or drag the folder from a Finder window into the Terminal window. Then press Return. Answer the other questions the same way as the first time.</li>
+<li>Do the six steps in Part 5 again, so Codex opens the folder in its new place.</li>
+</ol>
+<p><strong>Continuum Notes</strong> on your Desktop then opens the folder in its new place. If you set up Continuum for a second app on this Mac and give it a different notes folder, Continuum Notes opens the newest one.</p>
+<h2>If something does not work</h2>
+<ul>
+<li><strong>A box says the file "cannot be opened because it is from an unidentified developer".</strong> The file was double-clicked. Click <strong>OK</strong>, then start the file from Terminal, as in Part 3.</li>
+<li><strong>The window says "Continuum needs Node.js".</strong> Do Part 1, then start the file from Terminal again.</li>
+<li><strong>The answer does not mention your rules.</strong> Check three things: you are in the <strong>Codex</strong> screen, your notes folder is the folder you opened, and it says <strong>This computer</strong> above the message box. Then start a new chat and ask again.</li>
+<li><strong>Still nothing.</strong> Start <strong>Continuum Check for Codex.command</strong> from Terminal and do what it says. The most common miss is the <strong>Trust all</strong> click in step 4 of Part 5.</li>
+<li><strong>The setup window says "Something did not work".</strong> Nothing else was changed after that point. The window names a log file with the details. Send that file to whoever gave you Continuum.</li>
+</ul>
+<h2>Removing it</h2>
+<ol>
+<li>Start the file <strong>Continuum Remove for Codex.command</strong> from Terminal, the same way as the setup file in Part 3.</li>
+<li>Type <strong>YES</strong> and press Return.</li>
+</ol>
+<p>This takes Continuum out of Codex. Your notes folder and everything in it stay where they are.</p>
+</main>
+</body>
+</html>

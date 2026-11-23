@@ -19,9 +19,9 @@ const PLAIN = {
 };
 // Any of these verbs next to a vault path means the notes change without a backup.
 // The level stays vault-delete: the person approves shell changes to notes once, by name.
-const DESTRUCTIVE = /\b(?:delete|remove|rm|rmdir|rimraf|del|erase|unlink(?:Sync)?|rmSync|rmdirSync|Remove-Item|ri|Clear-Content|clc|mv|move|Move-Item|mi|rename|ren|Rename-Item|rni|cp|copy|Copy-Item|cpi|Set-Content|sc|Add-Content|ac|Out-File|tee|truncate|shred|git\b[^;&|]*\b(?:clean|rm|checkout|restore|reset|stash)|node\s+-e|python3?\s+-c|perl\s+-e|ruby\s+-e|pwsh\s+-c|powershell\s+-c)\b|>/i;
+const DESTRUCTIVE = /\b(?:delete|remove|rm|rmdir|rimraf|del|erase|unlink(?:Sync)?|rmSync|rmdirSync|Remove-Item|ri|Clear-Content|clc|mv|move|Move-Item|mi|rename|ren|Rename-Item|rni|cp|copy|Copy-Item|cpi|Set-Content|sc|Add-Content|ac|Out-File|tee|truncate|shred|trash|ditto|rsync|sed\s+-i|perl\s+-p?i|git\b[^;&|]*\b(?:clean|rm|checkout|restore|reset|stash)|node\s+-e|python3?\s+-c|perl\s+-e|ruby\s+-e|pwsh\s+-c|powershell\s+-c)\b|>/i;
 const RECURSIVE = /(?:^|\s)-(?:r|rf|fr|R|Rf|Recurse|recurse)\b|\/s\b|\brmdir\b|\brimraf\b|\bshred\b|\bgit\b[^;&|]*\bclean\b/i;
-const SYSTEM = /\b(?:install|schtasks|Register-ScheduledTask|winget|choco|brew|apt|netsh|regedit)\b|\bnpm\s+i\b|\bpip\s+install\b|\bsc\s+create\b|\breg\s+(?:add|delete|import)\b|\bSet-ItemProperty\b.*\bHK[A-Z]{2}\b|\bNew-ItemProperty\b.*\bHK[A-Z]{2}\b/i;
+const SYSTEM = /\b(?:install|schtasks|Register-ScheduledTask|winget|choco|brew|apt|netsh|regedit|sudo|launchctl|crontab|softwareupdate|osascript)\b|\bdefaults\s+write\b|\bnpm\s+i\b|\bpip\s+install\b|\bsc\s+create\b|\breg\s+(?:add|delete|import)\b|\bSet-ItemProperty\b.*\bHK[A-Z]{2}\b|\bNew-ItemProperty\b.*\bHK[A-Z]{2}\b/i;
 const SHELL_MAIL = /\b(?:Send-MailMessage|sendmail|msmtp|blat|mailx?)\b/i;
 // Codex's own settings, hooks and plugin folders count as system settings when Codex is the host.
 const CODEX_CONFIG_PATH = /(?:^|[\\/])(?:\.codex[\\/](?:config\.toml|hooks\.json|hooks[\\/]|plugins[\\/])|\.agents[\\/]plugins[\\/])/i;
@@ -69,23 +69,17 @@ const slashes = value => String(value).replace(/[/\\]/g, '/').toLowerCase();
 // those words often name a note and say "delete". Only the exact invocation is
 // exempt: node, the script, a level, one quoted note, nothing before or after.
 function isApproveCommand(command) {
-  const m = String(command).match(/^\s*node\s+("[^"]+"|'[^']+'|\S+)\s+(?:--host(?:=|\s+)codex\s+)?([a-z-]+)\s+("[^"]*"|'[^']*'|[^\s;&|<>$`]+)\s*$/i);
-  if (!m) return false;
+  const m = String(command).match(/^\s*node\s+("[^"]+"|'[^']+'|\S+)\s+(?:--host(?:=|\s+)(codex|antigravity)\s+)?([a-z-]+)\s+("[^"]*"|'[^']*'|[^\s;&|<>$`]+)\s*$/i);
+  if (!m || (/^antigravity$/i.test(m[2] || '') && !config.host.isAntigravity())) return false; // only the flag itself, never the quoted words
   const script = m[1].replace(/^["']|["']$/g, '');
   return slashes(config.normalize(script)) === slashes(config.pluginPath('scripts', 'approve.js')) &&
-    APPROVABLE.includes(m[2].toLowerCase());
+    APPROVABLE.includes(m[3].toLowerCase());
 }
 function commandPaths(c, command, cwd) {
-  const parts = [];
-  const values = [];
-  const rx = /"([^"]*)"|'([^']*)'|([^\s;|&(){}]+?)(?=\s|[;|&(){}]|$)/g;
+  const parts = []; const W = require('./lib/shell-words');
+  // Every word and every quoted string, read the way the shell reads them (lib/shell-words.js).
+  const values = W.words(command);
   let m;
-  while ((m = rx.exec(command))) values.push(m[1] ?? m[2] ?? m[3]);
-  // A quoted path can sit inside an assignment (f="/c/vault/note.md"; rm "$f"),
-  // where the tokenizer above only sees f="/c/vault/note.md, so collect every
-  // quoted string on its own as well.
-  const quoted = /"([^"]+)"|'([^']+)'/g;
-  while ((m = quoted.exec(command))) values.push(m[1] ?? m[2]);
   const code = O.codes(command); values.push(...O.inner(command)); // a one-liner's code is not a path; paths inside it are
   const calls = /\b(?:unlink(?:Sync)?|rmSync|rmdirSync|remove|delete|rm|rename(?:Sync)?|writeFile(?:Sync)?|Path)\s*\(\s*(["'])(.*?)\1/gi;
   while ((m = calls.exec(command))) values.push(m[2]);
@@ -93,7 +87,7 @@ function commandPaths(c, command, cwd) {
     // PowerShell parameters carry their value after a colon: -LiteralPath:C:\x or -Path:"C:\x".
     const named = value.match(/^-{1,2}[\w-]+[:=](.+)$/);
     if (named) value = named[1].replace(/^["']|["']$/g, '');
-    value = value.replace(/^[<>]+/, '');
+    value = value.replace(/^[<>]+/, '').replace(/^\$HOME(?=[\\/]|$)/, '~');
     // A glob names everything under its fixed prefix, so the prefix folder is
     // tested as a folder that may hold the vault (wide), not as one file.
     const glob = value.search(/[*?[]/);
@@ -102,7 +96,7 @@ function commandPaths(c, command, cwd) {
     if (!value || value.startsWith('-') || /[$\x60]/.test(value) ||
         (/[()]/.test(value) && /["']/.test(value)) ||
         /^(?:rm|rmdir|del|erase|delete|remove|unlink|Remove-Item|node|python|python3)$/i.test(value)) continue;
-    try { parts.push({ p: config.resolveTarget(c, value, cwd), wide }); } catch {}
+    try { parts.push({ p: config.resolveTarget(c, W.literal(value), cwd), wide }); } catch {} // a $ that is part of the name is back in it
   }
   return parts;
 }
@@ -117,7 +111,9 @@ function duplicate(c, file, content) {
 }
 function backup(c, file, batch = Date.now() + '-' + require('crypto').randomBytes(4).toString('hex')) {
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return;
-  const relative = path.relative(c.vault, file);
+  const relative = config.relative(c.vault, file);
+  // A copy never leaves its own batch folder: a path that leads out of the notes folder is refused (a failed backup for the caller).
+  if (!relative || path.isAbsolute(relative) || /^\.\.(?:[\\/]|$)/.test(relative)) throw new Error('the file is not inside the notes folder');
   const dest = config.vaultPath(c, '.backups', config.date(c), batch, relative);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.copyFileSync(file, dest);
@@ -131,7 +127,7 @@ function editEmpties(file, ti) {
   const result = ti.replace_all ? current.split(oldText).join(newText) : current.replace(oldText, () => newText);
   return result.trim() === '' && current.trim() !== '';
 }
-const isConfig = p => CONFIG_PATH.test(p) || (config.host.isCodex() && CODEX_CONFIG_PATH.test(p));
+const agConfig = p => config.host.isAntigravity() && require('./lib/antigravity').CONFIG_PATH.test(p); const isConfig = p => CONFIG_PATH.test(p) || (config.host.isCodex() && CODEX_CONFIG_PATH.test(p)) || agConfig(p);
 // Codex edits files with apply_patch: every path in the patch gets the Write/Edit rules.
 // Delete or move of a vault file is a vault-delete; an Add of a new note gets the duplicate check.
 function patchCall(c, input, command, levels, hits) {
@@ -160,7 +156,7 @@ function classify(input, c) {
   const ti = input.tool_input && typeof input.tool_input === 'object' ? input.tool_input : {};
   const onCodex = config.host.isCodex();
   const command = onCodex && Array.isArray(ti.command) ? ti.command.join(' ') : String(ti.command || '');
-  const levels = new Set();
+  const levels = new Set(config.host.isAntigravity() ? require('./lib/antigravity').levels(tool, ti) : []); // schedule = a scheduled task
   const shell = tool === 'Bash' || tool === 'PowerShell';
   const writing = tool === 'Write' || tool === 'Edit';
   let file = null;
@@ -176,7 +172,7 @@ function classify(input, c) {
     // spellings of "write nowhere" count as nowhere there.
     const scan = quiet(command, onCodex || config.host.isHermes() ? 'PowerShell' : tool);
     if (SYSTEM.test(command) || setupAllows(command) || ((CONFIG_PATH.test(command) ||
-        (onCodex && CODEX_CONFIG_PATH.test(command))) && SHELL_WRITE.test(scan))) {
+        (onCodex && CODEX_CONFIG_PATH.test(command)) || agConfig(command)) && SHELL_WRITE.test(scan))) {
       levels.add('system-change');
     }
     if (SHELL_MAIL.test(command)) levels.add('email-send'); if (F.realSplit(command)) levels.add('vault-delete'); // a real split rewrites notes; its dry run is free
@@ -233,7 +229,7 @@ function handle(input, c) {
   }
   // Every vault Write/Edit is backed up before any answer. The hook never sees the
   // person's Yes in the prompt, so the dated copy has to exist before the question.
-  const relative = call.vaultWrite ? path.relative(c.vault, call.file) : '';
+  const relative = call.vaultWrite ? config.relative(c.vault, call.file) : '';
   if (call.vaultWrite) {
     try { backup(c, call.file); } catch (e) {
       note(c, 'action: ' + call.tool, 'vault-write', 'denied, backup failed', relative);
@@ -277,7 +273,7 @@ function codexDeny(c, missing, duplicates, describe, copied) {
 function patchAnswer(c, call, describe) {
   for (const file of call.patch.touched) {
     try { backup(c, file); } catch (e) {
-      note(c, 'action: apply_patch', 'vault-write', 'denied, backup failed', path.relative(c.vault, file));
+      note(c, 'action: apply_patch', 'vault-write', 'denied, backup failed', config.relative(c.vault, file));
       return decision('deny', '[continuum] The backup of ' + file + ' failed (' + e.message + '), so the patch is refused.');
     }
   }
@@ -290,10 +286,10 @@ function patchAnswer(c, call, describe) {
     return codexDeny(c, missing, duplicates, describe, call.patch.touched.length > 0);
   }
   for (const level of call.levels) note(c, 'action: apply_patch', level, 'allow-by-token', describe);
-  for (const file of call.patch.touched) note(c, 'action: apply_patch', 'vault-write', 'allowed', path.relative(c.vault, file));
+  for (const file of call.patch.touched) note(c, 'action: apply_patch', 'vault-write', 'allowed', config.relative(c.vault, file));
   return {};
 }
-module.exports = { handle, classify, validToken, isApproveCommand, APPROVABLE, backup };
+module.exports = { handle, classify, validToken, isApproveCommand, APPROVABLE, backup, commandPaths };
 // The gate fails closed: if it cannot decide, the call is denied with the reason.
 if (require.main === module) config.hook('PreToolUse', handle, e =>
   decision('deny', '[continuum] The gate could not evaluate this call (' + String(e.message || e) + '); denied. Fix the cause or run the setup skill.'));

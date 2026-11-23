@@ -9,7 +9,8 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const root = path.resolve(__dirname, '..');
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'continuum-claudesetup-'));
+// The real path: on a Mac the temporary folder sits behind a link (/var is /private/var), and setup writes real paths.
+const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'continuum-claudesetup-')));
 const home = path.join(temp, 'home');
 const claudeDir = path.join(temp, 'claude');
 const settings = path.join(claudeDir, 'settings.json');

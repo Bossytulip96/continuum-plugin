@@ -1,0 +1,21 @@
+{
+  "continuum": {
+    "SessionStart": [
+      { "type": "command", "command": "node ./scripts/antigravity-hook.js SessionStart", "timeout": 8 }
+    ],
+    "PreInvocation": [
+      { "type": "command", "command": "node ./scripts/antigravity-hook.js PreInvocation", "timeout": 8 }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "node ./scripts/antigravity-hook.js PreToolUse", "timeout": 8 }
+        ]
+      }
+    ],
+    "Stop": [
+      { "type": "command", "command": "node ./scripts/antigravity-hook.js Stop", "timeout": 8 }
+    ]
+  }
+}

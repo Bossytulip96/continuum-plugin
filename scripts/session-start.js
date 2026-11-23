@@ -52,8 +52,10 @@ function build(c, entries) {
   // Hermes does not work from inside the notes folder, so the text has to name it. Seen on a real Hermes on
   // 2026-11-18, on a computer with three folders whose names start with Continuum: Hermes guessed which one
   // was its own, and in another chat searched the home folder for a note by name. After the start page, so
-  // the text still opens the way every host's start text does.
-  if (C.host.isHermes()) context.splice(2, 0, '[continuum] Notes folder', 'Your Continuum notes are in this folder:\n' +
+  // the text still opens the way every host's start text does. Antigravity is the same when Continuum is a
+  // plugin for every folder: a conversation with no folder open has nothing that names the notes folder (seen
+  // on 2026-11-23: asked to change a note, Antigravity ran a check and read the settings file to find it).
+  if (C.host.isHermes() || C.host.isAntigravity()) context.splice(2, 0, '[continuum] Notes folder', 'Your Continuum notes are in this folder:\n' +
     C.oneLine(c.vault) + '\nEvery note named in this text (Home.md, Knowledge/..., Log/...) is inside it. Use this folder for ' +
     'your Continuum notes; do not take another folder with a similar name for it.');
   // First, so a host limit on start text (Codex: additionalContextLimit) cannot drop them: an unfinished
@@ -115,9 +117,14 @@ function chat(c, context, onCodex) {
       'never after a No, and never for money.');
     return context;
   }
-  context.push('[continuum] Chat approval', 'When the person says in chat that a whole kind of gated action may go ahead ' +
+  // Antigravity: the gate answers force_ask, so the person decides in Antigravity's own permission prompt, as in
+  // Claude Code; the approve line carries --host antigravity because the model's shell does not select the host.
+  const onAg = C.host.isAntigravity();
+  context.push('[continuum] Chat approval', (onAg ? 'For a gated action Antigravity shows the person its own permission ' +
+    'prompt with a reason that starts with [continuum]; the answer is theirs, and money is always refused. ' : '') +
+    'When the person says in chat that a whole kind of gated action may go ahead ' +
     'for a while (for example "you may delete notes for the next hour"), record their exact words by running this command ' +
-    'alone, with nothing chained to it: node "' + C.pluginPath('scripts', 'approve.js') + '" <level> "<their words>" ' +
+    'alone, with nothing chained to it: node "' + C.pluginPath('scripts', 'approve.js') + '" ' + (onAg ? '--host antigravity ' : '') + '<level> "<their words>" ' +
     '(level is one of ' + LEVELS.join(', ') + '; their words go inside one pair of double quotes with no double quotes ' +
     'inside). That level then skips the permission prompt for ' + (C.ttl(c) / 3600000) + ' hour(s); it cannot be made ' +
     'shorter. If the person named a shorter time than that, tell them how long it will really last and run the command ' +

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "continuum",
+  "displayName": "Continuum",
+  "description": "Plain Markdown memory, prompt routing and approval gates.",
+  "version": "0.8.0",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "vault",
+    "approvals"
+  ]
+}

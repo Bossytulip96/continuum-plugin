@@ -47,6 +47,8 @@ function tick(c) {
 const tmpOf = (file, batch) => file + '.' + batch + '.split-tmp';
 // Every changed or new file: a temporary file in the same folder, then the expected-bytes check, then the rename.
 function atomic(c, file, content, batch, guard) {
+  // A note marked read-only is not replaced. Windows refuses that at the rename; a Mac or Linux would let it through.
+  try { fs.accessSync(file, fs.constants.W_OK); } catch (e) { if (e.code !== 'ENOENT') throw e; }
   tick(c); fs.writeFileSync(tmpOf(file, batch), content, { flag: 'wx' });
   tick(c); if (guard) guard();
   fs.renameSync(tmpOf(file, batch), file);

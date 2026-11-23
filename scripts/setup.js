@@ -98,6 +98,8 @@ if (require.main === module) C.runCli(() => {
   const args = process.argv.slice(2);
   if (C.host.isCodex()) return require('./lib/codex-setup').run(args, setup);
   if (C.host.isHermes()) return require('./lib/hermes-setup').run(args, setup);
+  // Antigravity (--host antigravity) accepts --hooks plugin|global and --remove; --allow-folder is optional there.
+  if (C.host.isAntigravity()) return require('./lib/antigravity-setup').run(args, setup);
   const claude = require('./lib/claude-setup');
   return claude.wanted(args) ? claude.run(args, setup) : setup(args);
 });

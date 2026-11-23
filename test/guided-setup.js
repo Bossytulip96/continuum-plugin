@@ -6,11 +6,19 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const root = path.resolve(__dirname, '..');
-const { STEPS, steps } = require('../scripts/lib/guided');
+// On a Mac the end screen speaks in the Mac words of each app, the notes folder is suggested in the home folder, and the Desktop shortcut is a link.
+// The Mac guides, the nine .command files and the Mac reading of a typed folder are checked in test/guided-mac.js.
+const MAC = process.platform === 'darwin';
+const { STEPS, steps } = MAC ? require('../scripts/lib/guided-mac-steps') : require('../scripts/lib/guided');
+const PICK = MAC ? 'click Open' : 'click Select Folder';
+const GUIDE = MAC ? ' on a Mac' : '';
+const notes = () => MAC ? path.join(temp, 'Continuum') : path.join(temp, 'Documents', 'Continuum');
 let temp;
 let checks = 0;
 function fresh() {
-  temp = fs.mkdtempSync(path.join(os.tmpdir(), 'continuum-guided-'));
+  // The real path: on a Mac the temporary folder sits behind a link, and Claude's hook lines carry real paths.
+  // (test/antigravity-guided.js keeps the path with the link in it, so that spelling stays covered.)
+  temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'continuum-guided-')));
   // CONTINUUM_DESKTOP keeps the Desktop shortcut inside the temp profile, never on the real Desktop.
   const env = { ...process.env, USERPROFILE: temp, HOME: temp, CODEX_HOME: path.join(temp, '.codex'), CLAUDE_CONFIG_DIR: path.join(temp, '.claude'),
     CONTINUUM_DESKTOP: path.join(temp, 'Desktop') };
@@ -33,9 +41,10 @@ try {
     const r = guided(env, ['Sample Person', '', '', '', '']);
     assert.equal(r.status, 0, r.stdout + r.stderr);
     const perm = path.join(temp, '.codex', 'plugins', 'continuum');
-    const vault = path.join(temp, 'Documents', 'Continuum');
+    const vault = notes();
     for (const f of ['scripts/setup.js', 'scripts/guided-setup.js', 'hooks/codex-hooks.json', 'vault-skeleton/START HERE.md', 'hermes/__init__.py',
-      '.codex-plugin/plugin.json', 'Continuum Setup for Codex.cmd', 'INSTALL-CODEX.md', 'INSTALL-CLAUDE.md', 'LICENSE', 'Continuum Guide for Codex.html']) assert(fs.existsSync(path.join(perm, f)), f);
+      '.codex-plugin/plugin.json', 'Continuum Setup for Codex.cmd', 'INSTALL-CODEX.md', 'INSTALL-CLAUDE.md', 'LICENSE', 'Continuum Guide for Codex.html',
+      'Continuum Setup for Codex.command', 'Continuum Guide for Codex on a Mac.html']) assert(fs.existsSync(path.join(perm, f)), f);
     assert(!fs.existsSync(path.join(perm, 'INSTALL.md')), 'the old install doc name is gone');
     assert(!fs.existsSync(path.join(perm, '.git')) && !fs.existsSync(path.join(perm, 'test')));
     assert(fs.existsSync(path.join(temp, '.continuum', 'codex', 'config.json')));
@@ -44,18 +53,20 @@ try {
     const hooks = fs.readFileSync(path.join(vault, '.codex', 'hooks.json'), 'utf8');
     assert(hooks.includes(perm.split(path.sep).join('/') + '/scripts/')); assert(!hooks.includes(root.split(path.sep).join('/')));
     assert.equal(STEPS.length, 6);
-    const linked = process.platform === 'win32';
+    const linked = process.platform === 'win32' || MAC;
     steps(vault, linked).forEach((s, i) => assert(r.stdout.includes((i + 1) + '. ' + s), s));
-    if (linked) assert(r.stdout.includes('In the left list click Desktop, double-click Continuum Notes, then click Select Folder. (If you do not see Continuum Notes there, your notes folder is ' + vault + '.)'), 'step 3 uses the shortcut and names the folder');
-    else assert(r.stdout.includes('Go to your notes folder and click Select Folder. Your notes folder is ' + vault + '.'), 'step 3 names the notes folder');
+    if (MAC) assert.equal(fs.readlinkSync(path.join(temp, 'Desktop', 'Continuum Notes')), vault, 'link made in CONTINUUM_DESKTOP');
+    else if (linked) assert(r.stdout.includes('In the left list click Desktop, double-click Continuum Notes, then click Select Folder. (If you do not see Continuum Notes there, your notes folder is ' + vault + '.)'), 'step 3 uses the shortcut and names the folder');
+    else assert(r.stdout.includes('Go to your notes folder and ' + PICK + '. Your notes folder is ' + vault + '.'), 'step 3 names the notes folder');
+    if (linked) assert(r.stdout.includes('Desktop shortcut: Continuum Notes (opens your notes folder)'), 'Done block names the shortcut');
     assert(r.stdout.includes('\n  Desktop shortcut: Continuum Notes\n'), 'summary names the shortcut');
     if (process.platform === 'win32') {
       const lnk = path.join(temp, 'Desktop', 'Continuum Notes.lnk');
       assert(fs.existsSync(lnk) && fs.statSync(lnk).size > 0, 'shortcut made in CONTINUUM_DESKTOP');
-      assert(r.stdout.includes('Desktop shortcut: Continuum Notes (opens your notes folder)'), 'Done block names the shortcut');
     }
     assert(r.stdout.includes('Do not pick the folder named .continuum'), 'step 3 warns about the settings folder');
-    assert.match(r.stdout, /Program folder: .*[\\/]\.codex[\\/]plugins[\\/]continuum/); assert.match(r.stdout, /The guide is here: .*[\\/]Continuum Guide for Codex\.html\r?\n/);
+    assert.match(r.stdout, /Program folder: .*[\\/]\.codex[\\/]plugins[\\/]continuum/);
+    assert.match(r.stdout, new RegExp('The guide is here: .*[\\\\/]Continuum Guide for Codex' + GUIDE + '\\.html\\r?\\n'));
     // A second run (from the permanent copy now) changes no byte of the hooks file and keeps the vault.
     const before = fs.readFileSync(path.join(vault, '.codex', 'hooks.json'));
     const again = guided(env, ['Sample Person', '', '', '', ''], [], path.join(perm, 'scripts', 'guided-setup.js'));
@@ -93,7 +104,7 @@ try {
   });
   step('--check: plain verdict when complete, the Trust step when Codex has no trust entries; --remove needs YES', env => {
     guided(env, ['Sample Person', '', '', '', '']);
-    const vault = path.join(temp, 'Documents', 'Continuum');
+    const vault = notes();
     const hooksFile = path.join(vault, '.codex', 'hooks.json');
     fs.writeFileSync(path.join(temp, '.codex', 'config.toml'), 'model = "x"\n');
     let r = guided(env, [], ['--check']);
@@ -127,7 +138,7 @@ try {
   step('the notes folder moved by hand, then setup again with the new address: everything follows, notes untouched', env => {
     guided(env, ['Sample Person', '', '', '', '']);
     const perm = path.join(temp, '.codex', 'plugins', 'continuum');
-    const oldVault = path.join(temp, 'Documents', 'Continuum');
+    const oldVault = notes();
     fs.writeFileSync(path.join(oldVault, 'notes-and-ideas', 'Move marker.md'), '# Move marker\nWritten before the move.\n');
     const before = Object.fromEntries(Object.entries(snapshot(oldVault)).map(([f, b]) => [path.relative(oldVault, f), b]));
     const newVault = path.join(temp, 'Cloud Folder', 'Continuum');
@@ -141,6 +152,7 @@ try {
     const after = Object.fromEntries(Object.entries(snapshot(newVault)).map(([f, b]) => [path.relative(newVault, f), b]));
     assert.deepEqual(after, before, 'notes and hooks file byte for byte');
     assert(!fs.existsSync(oldVault), 'nothing made at the old place');
+    if (MAC) assert.equal(fs.readlinkSync(path.join(temp, 'Desktop', 'Continuum Notes')), newVault, 'the link follows the move');
     if (process.platform === 'win32') {
       const t = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', '(New-Object -ComObject WScript.Shell).CreateShortcut($env:LNK).TargetPath'],
         { encoding: 'utf8', env: { ...process.env, LNK: path.join(temp, 'Desktop', 'Continuum Notes.lnk') } });
@@ -153,9 +165,9 @@ try {
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert(!r.stdout.includes('Desktop shortcut: Continuum Notes (opens'), r.stdout);
     assert(!fs.existsSync(path.join(temp, 'a-file', 'Desktop')));
-    const vault = path.join(temp, 'Documents', 'Continuum');
+    const vault = notes();
     steps(vault, false).forEach((s, i) => assert(r.stdout.includes((i + 1) + '. ' + s), s));
-    assert(r.stdout.includes('Go to your notes folder and click Select Folder. Your notes folder is ' + vault + '.'), 'no shortcut: step 3 names the folder');
+    assert(r.stdout.includes('Go to your notes folder and ' + PICK + '. Your notes folder is ' + vault + '.'), 'no shortcut: step 3 names the folder');
   });
   const { render, SOURCE, TARGET } = require('../scripts/build-guide');
   // The zip carries only the HTML guide (GUIDE-CODEX.md is export-ignore), so there is nothing to compare there.
@@ -182,6 +194,7 @@ try {
   // The Claude desktop app (--host claude): program in .continuum\program, hooks in Claude's settings.json.
   const claude = (env, lines, args = [], script) => guided(env, lines, args, script, 'claude');
   const { claudeSteps } = require('../scripts/lib/guided');
+  const shown = MAC ? require('../scripts/lib/guided-mac-steps').claudeSteps : claudeSteps;
   const foreign = { permissions: { allow: ['Bash(ls)'] }, enabledPlugins: { 'other@market': true },
     hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo other-stop' }] }] } };
   const settingsOf = () => JSON.parse(fs.readFileSync(path.join(temp, '.claude', 'settings.json'), 'utf8'));
@@ -195,9 +208,10 @@ try {
     const r = claudeSetup(env);
     assert.equal(r.status, 0, r.stdout + r.stderr);
     const perm = path.join(temp, '.continuum', 'program');
-    const vault = path.join(temp, 'Documents', 'Continuum');
+    const vault = notes();
     for (const f of ['scripts/setup.js', 'hooks/hooks.json', 'Continuum Setup for Claude.cmd', 'Continuum Check for Claude.cmd',
-      'Continuum Remove for Claude.cmd', 'Continuum Guide for Claude.html', 'INSTALL-CLAUDE.md']) assert(fs.existsSync(path.join(perm, f)), f);
+      'Continuum Remove for Claude.cmd', 'Continuum Guide for Claude.html', 'INSTALL-CLAUDE.md', 'Continuum Setup for Claude.command',
+      'Continuum Guide for Claude on a Mac.html']) assert(fs.existsSync(path.join(perm, f)), f);
     assert(!fs.existsSync(path.join(perm, 'test')) && !fs.existsSync(path.join(perm, '.git')));
     const cfg = JSON.parse(fs.readFileSync(path.join(temp, '.continuum', 'config.json'), 'utf8'));
     assert.match(cfg.machine, /-claude$/); assert.equal(path.resolve(cfg.vault), vault);
@@ -210,8 +224,8 @@ try {
     assert(r.stdout.includes('And it changes Claude\'s own settings file'), 'the opening says Claude\'s settings file changes');
     assert.match(r.stdout, /Done\. Continuum is set up:/); assert.match(r.stdout, /Copy of it as it was: /);
     assert.match(r.stdout, /4 steps are left, in the Claude app:/);
-    claudeSteps(vault, process.platform === 'win32').forEach((s, i) => assert(r.stdout.includes((i + 1) + '. ' + s), s));
-    assert.match(r.stdout, /The guide is here: .*[\\/]\.continuum[\\/]program[\\/]Continuum Guide for Claude\.html\r?\n/);
+    shown(vault, process.platform === 'win32' || MAC).forEach((s, i) => assert(r.stdout.includes((i + 1) + '. ' + s), s));
+    assert.match(r.stdout, new RegExp('The guide is here: .*[\\\\/]\\.continuum[\\\\/]program[\\\\/]Continuum Guide for Claude' + GUIDE + '\\.html\\r?\\n'));
     assert(!fs.existsSync(path.join(temp, '.codex')), 'nothing for Codex');
     const before = fs.readFileSync(path.join(temp, '.claude', 'settings.json'));
     const again = claude(env, ['Sample Person', '', '', '', ''], [], path.join(perm, 'scripts', 'guided-setup.js'));
@@ -231,7 +245,7 @@ try {
     assert.match(r.stdout, /Done\. The Claude app will no longer run Continuum\. Your notes and settings are still there\./);
     const data = settingsOf();
     assert.deepEqual(data.hooks, foreign.hooks); assert.deepEqual(data.enabledPlugins, foreign.enabledPlugins);
-    assert(fs.existsSync(path.join(temp, 'Documents', 'Continuum', 'START HERE.md')) && fs.existsSync(path.join(temp, '.continuum', 'config.json')));
+    assert(fs.existsSync(path.join(notes(), 'START HERE.md')) && fs.existsSync(path.join(temp, '.continuum', 'config.json')));
     r = claude(env, [], ['--check']);
     assert.match(r.stdout, /Not everything is in place yet:\n  - Claude's settings file is missing Continuum's hook lines[\s\S]*"Continuum Setup for Claude" again/);
     assert.match(claude(env, ['YES'], ['--remove']).stdout, /no Continuum hook lines to remove/);
