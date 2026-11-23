@@ -8,17 +8,23 @@ The same package runs under Hermes. Hermes loads a small Python adapter (`hermes
 node "<package folder>\scripts\setup.js" --host hermes --hermes-home "<Hermes home folder>" --person "<your name>" --vault "<absolute vault folder>" --machine "<machine label>" --timezone "America/New_York" --autonomy ask --allow-folder no --digests summary
 ```
 
-Options: `--node "<path to node.exe>"` (default: the node that runs setup), `--digests full` to load the full text of the five newest session digests at the start instead of one line each.
+On a Mac the same command is typed in Terminal, with the Mac's folder names:
+
+```sh
+node "<package folder>/scripts/setup.js" --host hermes --hermes-home "$HOME/.hermes" --person "<your name>" --vault "<absolute vault folder>" --machine "<machine label>" --timezone "America/New_York" --autonomy ask --allow-folder no --digests summary
+```
+
+Options: `--node "<path to node>"` (default: the node that runs setup), `--digests full` to load the full text of the five newest session digests at the start instead of one line each.
 
 It writes:
 
-- `%USERPROFILE%\.continuum\hermes\config.json`, the Hermes config (apart from the Claude Code and Codex ones).
+- `%USERPROFILE%\.continuum\hermes\config.json` (on a Mac `~/.continuum/hermes/config.json`), the Hermes config (apart from the Claude Code and Codex ones).
 - The vault templates, only if the vault folder is empty.
 - `<Hermes home>\plugins\continuum\` (plugin.yaml, `__init__.py`) and `continuum.json` next to them, which tells the adapter where the package, node and the config are. An adapter already there is first moved to `<Hermes home>\backups\plugins\continuum-<time>\`.
 
 It does not edit Hermes's `config.yaml`. It prints the steps left:
 
-1. Turn the plugin on: `hermes plugins enable continuum`. On Hermes Agent 0.23.1 the running gateway picks the plugin up at once and says so. If that command is missing or fails on your install, add `continuum` under `plugins:` `enabled:` in Hermes's config.yaml by hand. Skipped when it is already there.
+1. Turn the plugin on: `hermes plugins enable continuum`. On Hermes Agent 0.23.1 the running gateway picks the plugin up at once and says so. On 0.23.3, with no gateway running, the answer was "Plugin continuum enabled." If that command is missing or fails on your install, add `continuum` under `plugins:` `enabled:` in Hermes's config.yaml by hand. Skipped when it is already there.
 2. With `--digests full`: raise `hooks.output_spill.max_chars` to at least 100000, or Hermes cuts the start context.
 3. Restart the Hermes gateway and the dashboard.
 4. Ask "What are my standing rules?" If the answer quotes your vault, Continuum is working.
@@ -28,6 +34,8 @@ It does not edit Hermes's `config.yaml`. It prints the steps left:
 ```powershell
 node "<package folder>\scripts\status.js" --host hermes --hermes-home "<Hermes home folder>"
 ```
+
+On a Mac: `node "<package folder>/scripts/status.js" --host hermes --hermes-home "$HOME/.hermes"`.
 
 Read-only. PASS or FAIL for node, the config, the vault and START HERE.md, the adapter, its sidecar and scripts, the adapter version against the package version, and whether continuum is enabled in config.yaml ("cannot tell" when the file cannot be read); an INFO line gives the spill limit.
 
@@ -59,4 +67,7 @@ Gate answers: ask becomes Hermes's own Yes/No approval card (`rule_key` `continu
 - Tools other than `terminal`, `write_file` and `patch` are not classified unless they are named `mcp__<server>__<action>`; the mail, outside-system and money gates depend on tool names Hermes may not use.
 - The exact `patch` argument shape is not known; an unknown shape is copied and allowed, never asked.
 - The install, the check and step 1 were run on a real Hermes Agent (0.23.1 and 0.23.2, Windows, 2026-11-18), and so were the loading hooks: in `hermes chat` the start page and the rules note were loaded, the twelve rules came back, and a session record was written to Log/sessions when the chat ended. The gate ran there too: a delete and a real split of a large note each brought Hermes's approval card with the reason that starts with [continuum]; Deny stopped the command, and Allow once let it run with a copy kept first. A linked note, a search with no lookup word and the split itself gave the right answers.
+- On a Mac the install, the check and step 1 were run on one computer (Hermes Agent 0.23.3 from the command line, macOS 14, Intel, 2026-11-23), and so were the loading hooks: asked "What are my standing rules?" twice in one-shot mode (`hermes -z`), Hermes answered both times with the twelve rules from the vault, and a session record was written to Log/sessions each time. Not run on a Mac: the gate (no delete, note edit or approval card was tried there), a chat that is not one-shot, the gateway and the dashboard, the Hermes desktop app, a Mac with an Apple chip, macOS 15 or later.
+- Up to 0.8.0 the check could answer "continuum under plugins: enabled: in config.yaml: no", and setup could list "Turn the plugin on" as a step left, while the plugin was on: Hermes 0.23.3 writes `enabled:` inside `plugins:` after a comment block that starts at the left edge, and Continuum stopped reading at that comment. Fixed in 0.8.1. Only the check and the list of steps were wrong; Hermes itself had the plugin on. 0.8.1 also reads a list written on one line (`enabled: [a, b]`) by its entries only, so a comment after the list is no longer read as an entry.
+- Installing Hermes itself is outside Continuum. On that Intel Mac it needed Apple's command line tools. Hermes's Python part `cryptography` 50.0.2 was built from source there, and the install failed until OpenSSL 3.5.9 was built into a folder in the home folder and Hermes's installer was run with `OPENSSL_DIR="<that folder>" OPENSSL_STATIC=1` in front of it.
 - If the Hermes desktop app answers "Session unavailable" to every message, run `hermes status`. When Model reads "(not set)", pick a model first with `hermes model`. In the test of 2026-11-18 the app kept showing the notice with the plugin switched off and with a model set, while `hermes chat` in a terminal worked on the same computer. The cause of the notice is not known.

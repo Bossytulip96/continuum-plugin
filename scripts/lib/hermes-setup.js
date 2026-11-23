@@ -20,6 +20,8 @@ function take(args, name) {
   return value;
 }
 // Plain text reading of Hermes's config.yaml: is continuum under plugins: enabled:? true/false/null.
+// A comment that starts at the left edge does not end the plugins block: Hermes 0.23.3 writes enabled:
+// after the comment header of the next section, still inside plugins.
 function enabled(text) {
   const lines = String(text).split(/\r?\n/);
   const start = lines.findIndex(l => /^plugins:\s*(#.*)?$/.test(l));
@@ -27,10 +29,15 @@ function enabled(text) {
   let inList = false;
   let listIndent = -1;
   for (const line of lines.slice(start + 1)) {
+    if (/^#/.test(line)) continue;
     if (/^\S/.test(line)) break;
     const m = line.match(/^(\s+)enabled:\s*(.*)$/);
     if (m) {
-      if (m[2].trim().startsWith('[')) return /[[,\s'"]continuum['",\s\]]/.test(m[2]);
+      if (m[2].trim().startsWith('[')) {
+        // Only the entries between the brackets count; a comment after the list does not.
+        const inner = m[2].slice(m[2].indexOf('[') + 1).split(']')[0];
+        return inner.split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '')).includes('continuum');
+      }
       inList = true; listIndent = m[1].length; continue;
     }
     if (inList) {

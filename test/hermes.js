@@ -173,6 +173,21 @@ try {
     fs.writeFileSync(path.join(hermesHome, 'config.yaml'), 'plugins:\n  enabled: [other, continuum]\n');
     out = run('status', ['--hermes-home', hermesHome]);
     assert.match(out, /PASS continuum under plugins: enabled: in config.yaml: yes/);
+    // Hermes 0.23.3 writes enabled: inside plugins after the next section's comment header, which starts at the left edge.
+    const afterComment = 'plugins:\n  # Deadline for each Git clone\n  clone_timeout_seconds: 300\n\n# ====\n# Model Configuration\n# ====\n  enabled:\n    - continuum\n  disabled: []\nmodel:\n  default: x\n';
+    fs.writeFileSync(path.join(hermesHome, 'config.yaml'), afterComment);
+    out = run('status', ['--hermes-home', hermesHome]);
+    assert.match(out, /PASS continuum under plugins: enabled: in config.yaml: yes/);
+    const { enabled } = require('../scripts/lib/hermes-setup');
+    assert.equal(enabled(afterComment.replace('- continuum', '- other')), false);
+    assert.equal(enabled('plugins:\n  x: 1\n# note\nmodel:\n  enabled:\n    - continuum\n'), false);
+    assert.equal(enabled('model: x\n'), null);
+    // A list written on one line: only its entries count, not a comment after it.
+    assert.equal(enabled('plugins:\n  enabled: [other] # continuum is disabled\n'), false);
+    assert.equal(enabled('plugins:\n  enabled: [other, "continuum"] # on\n'), true);
+    assert.equal(enabled("plugins:\n  enabled: [ 'continuum' ]\n"), true);
+    assert.equal(enabled('plugins:\n  enabled: []\n'), false);
+    fs.writeFileSync(path.join(hermesHome, 'config.yaml'), 'plugins:\n  enabled: [other, continuum]\n');
     console.log(out.trim().split('\n').map(l => '    ' + l).join('\n'));
   });
   step('the Python adapter, driven like Hermes would against a stub ctx', () => {

@@ -1,6 +1,6 @@
 {
   "name": "continuum",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Plain Markdown memory, prompt routing and approval gates.",
   "license": "MIT",
   "keywords": [

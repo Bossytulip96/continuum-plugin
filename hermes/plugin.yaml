@@ -1,5 +1,5 @@
 name: continuum
-version: "0.8.0"
+version: "0.8.1"
 description: "Continuum: plain Markdown memory, prompt routing and approval gates. A thin adapter over the package's Node scripts."
 provides_hooks:
   - on_session_start

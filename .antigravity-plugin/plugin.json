@@ -3,7 +3,7 @@
   "name": "continuum",
   "displayName": "Continuum",
   "description": "Plain Markdown memory, prompt routing and approval gates.",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "license": "MIT",
   "keywords": [
     "memory",
